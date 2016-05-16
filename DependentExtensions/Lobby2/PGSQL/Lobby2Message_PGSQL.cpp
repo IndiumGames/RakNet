@@ -2688,7 +2688,7 @@ bool RakNet::Ranking_GetTotalScore_PGSQL::ServerDBImpl( Lobby2ServerCommand *com
 		return true;
 	}
 
-	int64_t count;
+	long long int count;
 	PostgreSQLInterface::PQGetValueFromBinary(&count, result, 0, "count");
 	numScoresSubmitted = (unsigned int) count;
 	if (numScoresSubmitted>0)
