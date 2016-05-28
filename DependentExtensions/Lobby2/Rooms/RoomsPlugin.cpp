@@ -983,22 +983,26 @@ void RoomsPlugin::Update(void)
 		}
 		for (i=0; i < joinedRoomMembers.Size(); i++)
 		{
-			((RoomsPluginParticipant*)joinedRoomMembers[i].joiningMember)->lastRoomJoined=joinedRoomMembers[i].roomOutput->GetID();
+			if (joinedRoomMembers[i].roomOutput) {
+				((RoomsPluginParticipant*)joinedRoomMembers[i].joiningMember)->lastRoomJoined=joinedRoomMembers[i].roomOutput->GetID();
 
-			QuickJoinEnteredRoom_Notification notificationToTarget;
-			notificationToTarget.joinedRoomResult=joinedRoomMembers[i];
-			notificationToTarget.joinedRoomResult.agrc=&roomsContainer;
-			ExecuteNotification(&notificationToTarget, ((RoomsPluginParticipant*)joinedRoomMembers[i].joiningMember));
+				QuickJoinEnteredRoom_Notification notificationToTarget;
+				notificationToTarget.joinedRoomResult=joinedRoomMembers[i];
+				notificationToTarget.joinedRoomResult.agrc=&roomsContainer;
+				ExecuteNotification(&notificationToTarget, ((RoomsPluginParticipant*)joinedRoomMembers[i].joiningMember));
+			}
 		}
 
 		for (i=0; i < joinedRoomMembers.Size(); i++)
 		{
-			RoomMemberJoinedRoom_Notification notificationToRoom;
-			notificationToRoom.joinedRoomResult=&joinedRoomMembers[i];
-			notificationToRoom.joinedRoomResult->agrc=&roomsContainer;
-			notificationToRoom.roomId=notificationToRoom.joinedRoomResult->roomDescriptor.lobbyRoomId;
-			ExecuteNotificationToOtherRoomMembers(joinedRoomMembers[i].joiningMember->GetRoom(), (RoomsPluginParticipant*)joinedRoomMembers[i].joiningMember, &notificationToRoom);
-			notificationToRoom.joinedRoomResult=0;
+			if (joinedRoomMembers[i].joiningMember->GetRoom()) {
+				RoomMemberJoinedRoom_Notification notificationToRoom;
+				notificationToRoom.joinedRoomResult=&joinedRoomMembers[i];
+				notificationToRoom.joinedRoomResult->agrc=&roomsContainer;
+				notificationToRoom.roomId=notificationToRoom.joinedRoomResult->roomDescriptor.lobbyRoomId;
+				ExecuteNotificationToOtherRoomMembers(joinedRoomMembers[i].joiningMember->GetRoom(), (RoomsPluginParticipant*)joinedRoomMembers[i].joiningMember, &notificationToRoom);
+				notificationToRoom.joinedRoomResult=0;
+			}
 		}
 
 		for (i=0; i < dereferencedPointers.Size(); i++)
