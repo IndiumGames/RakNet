@@ -3,7 +3,7 @@
  *  All rights reserved.
  *
  *  This source code is licensed under the BSD-style license found in the
- *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  LICENSE file in the root directory of this source tree. An additional grant
  *  of patent rights can be found in the PATENTS file in the same directory.
  *
  */
@@ -16,7 +16,7 @@
 #define __RPC_3_H
 
 // Most of the internals of the boost code to make this work
-#include "RPC3_Boost.h"
+#include "RPC3_STL.h"
 #include "PluginInterface2.h"
 #include "PacketPriority.h"
 #include "RakNetTypes.h"
@@ -41,7 +41,7 @@ class RakPeerInterface;
 class NetworkIDManager;
 
 /// \ingroup RPC_3_GROUP
-#define RPC3_REGISTER_FUNCTION(RPC3Instance, _FUNCTION_PTR_ ) (RPC3Instance)->RegisterFunction((#_FUNCTION_PTR_), (_FUNCTION_PTR_))
+#define RPC3_REGISTER_FUNCTION(RPC3Instance, _FUNCTION_PTR_, ...) (RPC3Instance)->RegisterFunction<__VA_ARGS__>((#_FUNCTION_PTR_), (_FUNCTION_PTR_))
 
 /// \brief Error codes returned by a remote system as to why an RPC function call cannot execute
 /// \details Error code follows packet ID ID_RPC_REMOTE_ERROR, that is packet->data[1]<BR>
@@ -100,12 +100,12 @@ public:
 	/// \param[in] uniqueIdentifier String identifying the function. Recommended that this is the name of the function
 	/// \param[in] functionPtr Pointer to the function. For C, just pass the name of the function. For C++, use ARPC_REGISTER_CPP_FUNCTION
 	/// \return True on success, false on uniqueIdentifier already used
-	template<typename Function>
+	template<typename... ArgTypes, typename Function>
 	bool RegisterFunction(const char *uniqueIdentifier, Function functionPtr)
 	{
 		if (IsFunctionRegistered(uniqueIdentifier)) return false;
 		_RPC3::FunctionPointer fp;
-		fp= _RPC3::GetBoundPointer(functionPtr);
+		fp= _RPC3::GetBoundPointerStruct<ArgTypes...>::GetBoundPointer(functionPtr);
 		localFunctions.Push(uniqueIdentifier,RakNet::OP_NEW_1<LocalRPCFunction>( _FILE_AND_LINE_, fp ),_FILE_AND_LINE_);
 		return true;
 	}
@@ -144,6 +144,8 @@ public:
 	template<typename Function>
 	void RegisterSlot(const char *sharedIdentifier, Function functionPtr, NetworkID objectInstanceId, int callPriority)
 	{
+		// TODO: NOT WROKING WITH THE NEW WAY.
+		/*
 		_RPC3::FunctionPointer fp;
 		fp= _RPC3::GetBoundPointer(functionPtr);
 		LocalSlotObject lso(objectInstanceId, nextSlotRegistrationCount++, callPriority, _RPC3::GetBoundPointer(functionPtr));
@@ -158,7 +160,7 @@ public:
 		{
 			localSlot=localSlots.ItemAtIndex(idx);
 		}
-		localSlot->slotObjects.Insert(lso,lso,true,_FILE_AND_LINE_);
+		localSlot->slotObjects.Insert(lso,lso,true,_FILE_AND_LINE_);*/
 	}
 
 	/// Unregisters a function pointer to be callable given an identifier for the pointer
@@ -220,7 +222,7 @@ public:
 
 	/// Calls a remote function, using as send parameters whatever was last passed to SetTimestamp(), SetSendParams(), SetRecipientAddress(), and SetRecipientObject()
 	/// If you call a C++ class member function, don't forget to first call SetRecipientObject(). You can use CallExplicit() instead of Call() to force yourself not to forget.
-	/// 
+	///
 	/// Parameters passed to Call are processed as follows:
 	/// 1. If the parameter is not a pointer
 	/// 2. - And you overloaded RakNet::BitStream& operator<<(RakNet::BitStream& out, MyClass& in) then that will be used to do the serialization
@@ -234,6 +236,7 @@ public:
 	/// \note If the call fails on the remote system, you will get back ID_RPC_REMOTE_ERROR. packet->data[1] will contain one of the values of RPCErrorCodes. packet->data[2] and on will contain the name of the function.
 	///
 	/// \param[in] uniqueIdentifier parameter of the same name passed to RegisterFunction() on the remote system
+	// TODO: These coulf use variadic template.
 	bool Call(const char *uniqueIdentifier){
 		RakNet::BitStream bitStream;
 		return SendCallOrSignal(uniqueIdentifier, 0, &bitStream, true);
@@ -553,7 +556,7 @@ public:
 	/// Calls zero or more functions identified by sharedIdentifier.
 	/// Uses as send parameters whatever was last passed to SetTimestamp(), SetSendParams(), and SetRecipientAddress()
 	/// You can use CallExplicit() instead of Call() to force yourself not to forget to set parameters
-	/// 
+	///
 	/// See the Call() function for a description of parameters
 	///
 	/// \param[in] sharedIdentifier parameter of the same name passed to RegisterSlot() on the remote system
@@ -813,7 +816,7 @@ public:
 // 		RPCIdentifier identifier;
 // 		unsigned int functionIndex;
 // 	};
-// 
+//
 // 	/// \internal
 // 	static int RemoteRPCFunctionComp( const RPCIdentifier &key, const RemoteRPCFunction &data );
 
