@@ -558,7 +558,7 @@ std::tuple<Args...> GetArgs(unsigned int index, Args... args) {
  * BoostRPCInvoker<Function, To, To>, call the function with arguments.
  */
  
-template<typename Function, typename... ArgTypes>
+template<typename Function>
 struct BoostRPCInvoker
 {
 	// add an argument to a Fusion cons-list for each parameter type
@@ -567,7 +567,8 @@ struct BoostRPCInvoker
 		InvokeResultCodes apply(Function func, InvokeArgs &functionArgs, const unsigned int argTypeIndex, std::tuple<TupleTypes...> args)
 	{
         //TODO: Check if you can get rid of Args.. https://functionalcpp.wordpress.com/2013/08/05/function-traits/
-		using trait =  function_traits<Function(ArgTypes...)>;
+		//using trait = function_traits<Function(ArgTypes...)>;
+        using trait = function_traits<decltype(func)>;
 		
 		std::size_t arity = trait::arity;
 		
@@ -586,20 +587,25 @@ struct BoostRPCInvoker
 		
 		auto tupleOfNewArgs = std::tuple_cat(args, std::make_tuple(argType));
 		
-		InvokeResultCodes irc = BoostRPCInvoker<Function, ArgTypes...>::apply
+		InvokeResultCodes irc = BoostRPCInvoker<Function>::apply
 			( func, functionArgs, argTypeIndex+1, tupleOfNewArgs );
 			
 		ProcessArgType< arg_type_no_ref >::type::Cleanup(argType);
 		return irc;
 	}
-    
+};
+
+template<typename Function>
+struct BoostRPCInvoker_First
+{
 	// add an argument to a Fusion cons-list for each parameter type
 	//template<typename... ArgTypes>
 	static inline
 		InvokeResultCodes apply(Function func, InvokeArgs &functionArgs)
 	{
 		const unsigned int argTypeIndex = 0;
-		using trait =  function_traits<Function(ArgTypes...)>;
+		//using trait =  function_traits<Function(ArgTypes...)>;
+        using trait = function_traits<decltype(func)>;
 		
 		std::size_t arity = trait::arity;
 		
@@ -618,7 +624,7 @@ struct BoostRPCInvoker
 		
 		auto tupleOfNewArgs = std::make_tuple(argType);
 
-		InvokeResultCodes irc = BoostRPCInvoker<Function, ArgTypes...>::apply
+		InvokeResultCodes irc = BoostRPCInvoker<Function>::apply
 			( func, functionArgs, argTypeIndex+1, tupleOfNewArgs );
 
 		ProcessArgType< arg_type_no_ref >::type::Cleanup(argType);
@@ -627,7 +633,7 @@ struct BoostRPCInvoker
 };
 
 
-template< typename Function, typename... ArgTypes >
+template< typename Function >
 struct BoostRPCInvoker_ThisPtr
 {
 	// add an argument to a Fusion cons-list for each parameter type
@@ -636,7 +642,8 @@ struct BoostRPCInvoker_ThisPtr
 	static inline
 		InvokeResultCodes apply(Function func, InvokeArgs &functionArgs, const unsigned int argTypeIndex, std::tuple<TupleTypes...> args)
 	{
-		using trait =  function_traits<Function(ArgTypes...)>;
+		//using trait =  function_traits<Function(ArgTypes...)>;
+        using trait = function_traits<decltype(func)>;
 		
 		std::size_t arity = trait::arity;
 		
@@ -652,18 +659,23 @@ struct BoostRPCInvoker_ThisPtr
 
 		auto tupleOfNewArgs = std::tuple_cat(args, std::make_tuple(argType));
 		
-		return BoostRPCInvoker<Function, ArgTypes...>::apply
+		return BoostRPCInvoker<Function>::apply
 			( func, functionArgs, argTypeIndex+1, tupleOfNewArgs );
 		//	( func, functionArgs, boost::fusion::push_back(args, boost::ref(argType) ) );
 	}
-    
+};
+
+template< typename Function >
+struct BoostRPCInvoker_ThisPtr_First
+{
 	// add an argument to a Fusion cons-list for each parameter type
 	//template<typename Args>
 	static inline
 		InvokeResultCodes apply(Function func, InvokeArgs &functionArgs)
 	{
 		const unsigned int argTypeIndex = 0;
-		using trait =  function_traits<Function(ArgTypes...)>;
+		//using trait =  function_traits<Function(ArgTypes...)>;
+        using trait = function_traits<decltype(func)>;
 		
 		std::size_t arity = trait::arity;
 		
@@ -679,7 +691,7 @@ struct BoostRPCInvoker_ThisPtr
 
 		auto tupleOfNewArgs = std::make_tuple(argType);
 		
-		return BoostRPCInvoker<Function, ArgTypes...>::apply
+		return BoostRPCInvoker<Function>::apply
 			( func, functionArgs, argTypeIndex+1, tupleOfNewArgs );
 		//	( func, functionArgs, boost::fusion::push_back(args, boost::ref(argType) ) );
 	}
@@ -897,48 +909,46 @@ FunctionPointer prefunc(bool isCppPointer, std::index_sequence<Ints...>) {
     return func(isCppPointer, typename std::tuple_element<Ints, placeholders_list>::type{}...);
 }*/
 							   
-template<typename Function, typename... ArgTypes>
+template<typename Function>
 struct GetBoundPointer_C
 {
 //	typedef typename GetBoundPointer_C type;
 	static FunctionPointer GetBoundPointer(Function f)
 	{
-		return std::make_tuple(false, std::bind( & BoostRPCInvoker<Function, ArgTypes...>::apply, f, std::placeholders::_1));
+		return std::make_tuple(false, std::bind( & BoostRPCInvoker_First<Function>::apply, f, std::placeholders::_1));
 		//const int n = sizeof...(ArgTypes);
 		//return prefunc(false, std::make_index_sequence<n>{});
 		//return std::make_tuple(false, std::bind( & BoostRPCInvoker<Function>::apply<ArgTypes...>, f, std::placeholders::_1, typename std::tuple_element<n, placeholders_list>::type{}std::make_index_sequence<n>{}));
 	}
 };
 
-template<typename Function, typename... ArgTypes>
+template<typename Function>
 struct GetBoundPointer_CPP
 {
 //	typedef typename GetBoundPointer_CPP type;
 	static FunctionPointer GetBoundPointer(Function f)
 	{
-		return std::make_tuple(true, std::bind( & BoostRPCInvoker_ThisPtr<Function, ArgTypes...>::apply, f, std::placeholders::_1));
+		return std::make_tuple(true, std::bind( & BoostRPCInvoker_ThisPtr_First<Function>::apply, f, std::placeholders::_1));
 		//const int n = sizeof...(ArgTypes) + 1;
 		//return prefunc(true, std::make_index_sequence<n>{});
-		// TODO apply<EMPTY_SEQUENCE? OR char*>  --   std::iterator_traits
+		//  apply<EMPTY_SEQUENCE? OR char*>  --   std::iterator_traits
 		//typedef std::function<Function> func;
 		//return std::make_tuple(true, std::bind( & BoostRPCInvoker_ThisPtr<Function>::apply<std::placeholders::_2>, f, std::placeholders::_1, std::placeholders::_2 ));
 	}
 };
 
-template<typename... ArgTypes>
-struct GetBoundPointerStruct {
-	template<typename Function>
-	FunctionPointer GetBoundPointer(Function f)
-	{
-		return std::conditional<
-		std::is_member_function_pointer<Function>::value
-		, GetBoundPointer_CPP<Function, ArgTypes...>
-		, GetBoundPointer_C<Function, ArgTypes...>
-		>::type::GetBoundPointer(f);
-		
-	//	return FunctionPointer(true, boost::bind( & BoostRPCInvoker<Function>::apply<boost::fusion::nil>, f, std::placeholders::_1, boost::fusion::nil() ) );
-	}
-};
+
+template<typename Function>
+FunctionPointer GetBoundPointer(Function f)
+{
+	return std::conditional<
+	std::is_member_function_pointer<Function>::value
+	, GetBoundPointer_CPP<Function>
+	, GetBoundPointer_C<Function>
+	>::type::GetBoundPointer(f);
+	
+//	return FunctionPointer(true, boost::bind( & BoostRPCInvoker<Function>::apply<boost::fusion::nil>, f, std::placeholders::_1, boost::fusion::nil() ) );
+}
 
 
 }

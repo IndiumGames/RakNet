@@ -41,7 +41,7 @@ class RakPeerInterface;
 class NetworkIDManager;
 
 /// \ingroup RPC_3_GROUP
-#define RPC3_REGISTER_FUNCTION(RPC3Instance, _FUNCTION_PTR_, ...) (RPC3Instance)->RegisterFunction<__VA_ARGS__>((#_FUNCTION_PTR_), (_FUNCTION_PTR_))
+#define RPC3_REGISTER_FUNCTION(RPC3Instance, _FUNCTION_PTR_) (RPC3Instance)->RegisterFunction((#_FUNCTION_PTR_), (_FUNCTION_PTR_))
 
 /// \brief Error codes returned by a remote system as to why an RPC function call cannot execute
 /// \details Error code follows packet ID ID_RPC_REMOTE_ERROR, that is packet->data[1]<BR>
@@ -100,12 +100,12 @@ public:
 	/// \param[in] uniqueIdentifier String identifying the function. Recommended that this is the name of the function
 	/// \param[in] functionPtr Pointer to the function. For C, just pass the name of the function. For C++, use ARPC_REGISTER_CPP_FUNCTION
 	/// \return True on success, false on uniqueIdentifier already used
-	template<typename... ArgTypes, typename Function>
+	template<typename Function>
 	bool RegisterFunction(const char *uniqueIdentifier, Function functionPtr)
 	{
 		if (IsFunctionRegistered(uniqueIdentifier)) return false;
 		_RPC3::FunctionPointer fp;
-		fp= _RPC3::GetBoundPointerStruct<ArgTypes...>::GetBoundPointer(functionPtr);
+		fp= _RPC3::GetBoundPointer(functionPtr);
 		localFunctions.Push(uniqueIdentifier,RakNet::OP_NEW_1<LocalRPCFunction>( _FILE_AND_LINE_, fp ),_FILE_AND_LINE_);
 		return true;
 	}
