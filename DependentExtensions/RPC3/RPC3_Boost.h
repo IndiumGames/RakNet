@@ -3,7 +3,7 @@
  *  All rights reserved.
  *
  *  This source code is licensed under the BSD-style license found in the
- *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  LICENSE file in the root directory of this source tree. An additional grant
  *  of patent rights can be found in the PATENTS file in the same directory.
  *
  */
@@ -53,6 +53,7 @@ class BitStream;
 namespace _RPC3
 {
 
+// TODO: Only IRC_SUCCESS is used?
 enum InvokeResultCodes
 {
 	IRC_SUCCESS,
@@ -148,7 +149,7 @@ static bool __RPC3ClearPtr(void* p, RPC3Tag *tag) {
 		{
 			*tag=__RPC3TagPtrs[i];
 			__RPC3TagPtrs[i].v=0;
-			__RPC3ClearTail();			
+			__RPC3ClearTail();
 			return true;
 		}
 	}
@@ -377,7 +378,7 @@ struct ReadWithoutNetworkID
 };
 
 template< typename T >
-struct identity 
+struct identity
 {
 	typedef T type;
 };
@@ -590,7 +591,7 @@ struct WriteWithNetworkIDPtr
 				bitStream.Write(bitsUsed2-bitsUsed1);
 				bitStream.SetWriteOffset(writeOffset2);
 			}
-		}		
+		}
 	}
 };
 

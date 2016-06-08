@@ -16,65 +16,65 @@
 #include <tuple>
 #include <iterator>
 
-// Fixes
-// error C2504: 'boost::fusion::detail::invoke_impl<Function,Sequence,N,CBI,RandomAccess>' : base class undefined
-// This defines the maximum number of parameters you can have
-#ifndef BOOST_FUSION_INVOKE_MAX_ARITY
-#define BOOST_FUSION_INVOKE_MAX_ARITY 10
-#endif
 
+
+/*INVOKE FUNCTIONS START
+TODO: Put these in to own generic file.
+*/
 template <class F, class... Args>
 auto INVOKE(F&& f, Args&&... args) ->
     decltype(std::forward<F>(f)(std::forward<Args>(args)...)) {
-      return std::forward<F>(f)(std::forward<Args>(args)...);
+        return std::forward<F>(f)(std::forward<Args>(args)...);
 }
 
-/*
 template <class F>
-auto INVOKE(F&& f)
-    noexcept(noexcept(std::forward<F>(f)()))
- -> std::enable_if_t<!std::is_member_pointer_v<std::decay_t<F>>,
-    decltype(std::forward<F>(f)())>
-{
-    return std::forward<F>(f)();
+auto INVOKE(F&& f) ->
+    decltype(std::forward<F>(f)()) {
+        return std::forward<F>(f)();
 }
 
-template <class F, class... Args>
-auto INVOKE(F&& f, Args&&... args)
-    noexcept(noexcept(std::forward<F>(f)(std::forward<Args>(args)...)))
- -> std::enable_if_t<!std::is_member_pointer_v<std::decay_t<F>>,
-    decltype(std::forward<F>(f)(std::forward<Args>(args)...))>
-{
-    return std::forward<F>(f)(std::forward<Args>(args)...);
-}
-*/
 
-namespace detail
-{
+namespace detail {
     template <typename F, typename Tuple, bool Done, int Total, int... N>
-    struct call_impl
-    {
-        static auto call(F && f, Tuple && t)
-        {
-            return call_impl<F, Tuple, Total == 1 + sizeof...(N), Total, N..., sizeof...(N)>::call(f, std::forward<Tuple>(t));
+    struct call_impl {
+        static auto call(F && f, Tuple && t) {
+            return call_impl<F, Tuple, Total == 1 + sizeof...(N), Total,
+                        N..., sizeof...(N)>::call(f, std::forward<Tuple>(t));
         }
     };
 
     template <typename F, typename Tuple, int Total, int... N>
-    struct call_impl<F, Tuple, true, Total, N...>
-    {
-        static auto call(F && f, Tuple && t)
-        {
+    struct call_impl<F, Tuple, true, Total, N...> {
+        static auto call(F && f, Tuple && t) {
             return std::forward<F>(f)(std::get<N>(std::forward<Tuple>(t))...);
+        }
+    };
+    
+    
+    template <typename F, typename Tuple>
+    struct empty_call_impl {
+        static void call(F && f, Tuple && t) {
         }
     };
 }
 
 template <class F, class Tuple>
 auto INVOKE(F&& f, Tuple&& t) {
-	typedef typename std::decay<Tuple>::type ttype;
-	return detail::call_impl<F, Tuple, 0 == std::tuple_size<ttype>::value, std::tuple_size<ttype>::value>::call(f, std::forward<Tuple>(t));
+    typedef typename std::decay<Tuple>::type ttype;
+    return detail::call_impl<F, Tuple, 0 == std::tuple_size<ttype>::value,
+                std::tuple_size<ttype>::value>::call(f, std::forward<Tuple>(t));
 }
+
+/*INVOKE FUNCTIONS END*/
+
+// Fixes
+// error C2504: 'boost::fusion::detail::invoke_impl<Function,Sequence,N,CBI,RandomAccess>' : base class undefined
+// This defines the maximum number of parameters you can have
+//TODO: There should be no maximum anymore.
+#ifndef BOOST_FUSION_INVOKE_MAX_ARITY
+#define BOOST_FUSION_INVOKE_MAX_ARITY 10
+#endif
+
 
 /*
 // Boost dependencies
@@ -483,7 +483,7 @@ struct GetReadFunction
 	*/
     //const bool
 	typedef typename std::conditional<
-		std::is_convertible<T,NetworkIDObject*>::value
+		std::is_convertible<T, NetworkIDObject*>::value
 		, ReadWithNetworkIDPtr<T>
 		, typename ReadWithoutNetworkID<T>::type
 	>::type type;
@@ -493,223 +493,62 @@ template< typename T >
 struct ProcessArgType
 {
 	typedef typename std::conditional<
-		std::is_convertible<T,RPC3*>::value
+		std::is_convertible<T, RPC3*>::value
 		, SetRPC3Ptr<T>
 		, typename GetReadFunction<T>::type
 	>::type type;
 };
-/*
-template< typename Function
-	, class From = typename boost::begin< boost::function_types::parameter_types<Function> >::type
-	, class To   = typename boost::end< boost::function_types::parameter_types<Function> >::type
->
-struct BoostRPCInvoker
-{
-	// add an argument to a Fusion cons-list for each parameter type
-	template<typename Args>
-	static inline
-		InvokeResultCodes apply(Function func, InvokeArgs &functionArgs, Args const &args)
-	{
-		typedef typename boost::mpl::deref<From>::type arg_type;
-		typedef typename boost::mpl::next<From>::type next_iter_type;
-		typedef typename boost::remove_reference<arg_type>::type arg_type_no_ref;
 
-		arg_type_no_ref argType;
-		ProcessArgType< arg_type_no_ref >::type::apply(functionArgs, argType);
-
-		InvokeResultCodes irc = BoostRPCInvoker<Function, next_iter_type, To>::apply
-			( func, functionArgs, boost::fusion::push_back(args, boost::ref(argType) ) );
-
-		ProcessArgType< arg_type_no_ref >::type::Cleanup(argType);
-		return irc;
-	}
-};*/
 
 template<class F>
-struct function_traits;
- 
-// function pointer
+struct RpcInvoker;
+
 template<class R, class... Args>
-struct function_traits<R(*)(Args...)> : public function_traits<R(Args...)>
-{};
+struct RpcInvoker<R(*)(Args...)> : public RpcInvoker<R(Args...)> {
+};
  
 template<class R, class... Args>
-struct function_traits<R(Args...)>
-{
-    using return_type = R;
- 
-    static constexpr std::size_t arity = sizeof...(Args);
- 
-    template <std::size_t N>
-    struct argument
-    {
-        static_assert(N < arity, "error: invalid parameter index.");
-        using type = typename std::tuple_element<N, std::tuple<Args...>>::type;
-    };
-};
-
-template<typename... Args>
-std::tuple<Args...> GetArgs(unsigned int index, Args... args) {
-	return std::make_tuple(args...);
-}
-
-/*
- * Recursively through arguments until at the last argument then in
- * BoostRPCInvoker<Function, To, To>, call the function with arguments.
- */
- 
-template<typename Function>
-struct BoostRPCInvoker
-{
-	// add an argument to a Fusion cons-list for each parameter type
-	template<typename... TupleTypes>
-	static inline
-		InvokeResultCodes apply(Function func, InvokeArgs &functionArgs, const unsigned int argTypeIndex, std::tuple<TupleTypes...> args)
-	{
-        //TODO: Check if you can get rid of Args.. https://functionalcpp.wordpress.com/2013/08/05/function-traits/
-		//using trait = function_traits<Function(ArgTypes...)>;
-        using trait = function_traits<decltype(func)>;
-		
-		std::size_t arity = trait::arity;
-		
-		if (argTypeIndex == arity) {
-			INVOKE(func, args);
-			return IRC_SUCCESS;
-		}
-		
-		typedef typename trait::template argument<argTypeIndex>::type arg_type;
-		
-		//typedef typename boost::mpl::next<From>::type next_iter_type;
-		typedef typename std::remove_reference<arg_type>::type arg_type_no_ref;
-
-		arg_type_no_ref argType;
-		ProcessArgType< arg_type_no_ref >::type::apply(functionArgs, argType);
-		
-		auto tupleOfNewArgs = std::tuple_cat(args, std::make_tuple(argType));
-		
-		InvokeResultCodes irc = BoostRPCInvoker<Function>::apply
-			( func, functionArgs, argTypeIndex+1, tupleOfNewArgs );
-			
-		ProcessArgType< arg_type_no_ref >::type::Cleanup(argType);
-		return irc;
-	}
-};
-
-template<typename Function>
-struct BoostRPCInvoker_First
-{
-	// add an argument to a Fusion cons-list for each parameter type
-	//template<typename... ArgTypes>
-	static inline
-		InvokeResultCodes apply(Function func, InvokeArgs &functionArgs)
-	{
-		const unsigned int argTypeIndex = 0;
-		//using trait =  function_traits<Function(ArgTypes...)>;
-        using trait = function_traits<decltype(func)>;
-		
-		std::size_t arity = trait::arity;
-		
-		if (argTypeIndex == arity) {
-			INVOKE(func);
-			return IRC_SUCCESS;
-		}
-		
-		typedef typename trait::template argument<argTypeIndex>::type arg_type;
-		
-		//typedef typename boost::mpl::next<From>::type next_iter_type;
-		typedef typename std::remove_reference<arg_type>::type arg_type_no_ref;
-
-		arg_type_no_ref argType;
-		ProcessArgType< arg_type_no_ref >::type::apply(functionArgs, argType);
-		
-		auto tupleOfNewArgs = std::make_tuple(argType);
-
-		InvokeResultCodes irc = BoostRPCInvoker<Function>::apply
-			( func, functionArgs, argTypeIndex+1, tupleOfNewArgs );
-
-		ProcessArgType< arg_type_no_ref >::type::Cleanup(argType);
-		return irc;
-	}
-};
-
-
-template< typename Function >
-struct BoostRPCInvoker_ThisPtr
-{
-	// add an argument to a Fusion cons-list for each parameter type
-	//template<typename Args>
-	template<typename... TupleTypes>
-	static inline
-		InvokeResultCodes apply(Function func, InvokeArgs &functionArgs, const unsigned int argTypeIndex, std::tuple<TupleTypes...> args)
-	{
-		//using trait =  function_traits<Function(ArgTypes...)>;
-        using trait = function_traits<decltype(func)>;
-		
-		std::size_t arity = trait::arity;
-		
-		if (argTypeIndex == arity) {
-			INVOKE(func, args);
-			return IRC_SUCCESS;
-		}
-		
-		typedef typename trait::template argument<argTypeIndex>::type arg_type;
-		//typedef typename std::next<From>::type next_iter_type;
-
-		arg_type argType = (arg_type) *(functionArgs.thisPtr);
-
-		auto tupleOfNewArgs = std::tuple_cat(args, std::make_tuple(argType));
-		
-		return BoostRPCInvoker<Function>::apply
-			( func, functionArgs, argTypeIndex+1, tupleOfNewArgs );
-		//	( func, functionArgs, boost::fusion::push_back(args, boost::ref(argType) ) );
-	}
-};
-
-template< typename Function >
-struct BoostRPCInvoker_ThisPtr_First
-{
-	// add an argument to a Fusion cons-list for each parameter type
-	//template<typename Args>
-	static inline
-		InvokeResultCodes apply(Function func, InvokeArgs &functionArgs)
-	{
-		const unsigned int argTypeIndex = 0;
-		//using trait =  function_traits<Function(ArgTypes...)>;
-        using trait = function_traits<decltype(func)>;
-		
-		std::size_t arity = trait::arity;
-		
-		if (argTypeIndex == arity) {
-			INVOKE(func);
-			return IRC_SUCCESS;
-		}
-		
-		typedef typename trait::template argument<argTypeIndex>::type arg_type;
-		//typedef typename std::next<From>::type next_iter_type;
-
-		arg_type argType = (arg_type) *(functionArgs.thisPtr);
-
-		auto tupleOfNewArgs = std::make_tuple(argType);
-		
-		return BoostRPCInvoker<Function>::apply
-			( func, functionArgs, argTypeIndex+1, tupleOfNewArgs );
-		//	( func, functionArgs, boost::fusion::push_back(args, boost::ref(argType) ) );
-	}
-};
-/*
-template<typename Function, class To>
-struct BoostRPCInvoker<Function,To,To>
-{
-	// the argument list is complete, now call the function
-	template<typename Args>
-	static inline
-		InvokeResultCodes apply(Function func, InvokeArgs&, Args const &args)
-	{
+struct RpcInvoker<R(Args...)> {
+    template <typename Function>
+    static inline InvokeResultCodes apply(Function func,
+                        InvokeArgs &functionArgs, bool memberFunction = false) {
+    	std::tuple<Args...> args;
+    	InvokeResultCodes irc = IRC_SUCCESS;
+    	
+    	RpcInvoker<decltype(func)>::apply(
+                                func, functionArgs, args, irc, memberFunction);
+    	
+    	return irc;
+    }
+    
+	template<std::size_t I = 0, typename Function>
+	static inline typename std::enable_if<I == sizeof...(Args), void>::type
+			apply(Function func, InvokeArgs &functionArgs,
+							std::tuple<Args...>& args, InvokeResultCodes &irc) {
 		INVOKE(func, args);
-
-		return IRC_SUCCESS;
+		irc = IRC_SUCCESS;
 	}
-};*/
+	
+	template<std::size_t I = 0, typename Function>
+	static inline typename std::enable_if<I < sizeof...(Args), void>::type
+			apply(Function func, InvokeArgs &functionArgs,
+                                				std::tuple<Args...>& args,
+                                                InvokeResultCodes &irc,
+                                                bool memberFunction = false) {
+		// Get argument from functionArgs to std::get<I>(args)
+		auto arg = std::get<I>(args);
+    	if (memberFunction) {
+    	    arg = (decltype(arg)) *(functionArgs.thisPtr);
+    	}
+    	else {
+		    ProcessArgType<decltype(arg)>::type::apply(functionArgs, arg);
+        }
+        
+    	RpcInvoker<decltype(func)>::template
+    	                            apply<I+1>(func, functionArgs, args, irc);
+	  }
+}; 
+
 
 template <typename T>
 struct DoNothing
@@ -915,7 +754,9 @@ struct GetBoundPointer_C
 //	typedef typename GetBoundPointer_C type;
 	static FunctionPointer GetBoundPointer(Function f)
 	{
-		return std::make_tuple(false, std::bind( & BoostRPCInvoker_First<Function>::apply, f, std::placeholders::_1));
+        InvokeResultCodes (RpcInvoker<decltype(f )>::*invoke_func)(InvokeArgs) = &RpcInvoker<decltype(f )>::apply;
+		return std::make_tuple(false, std::bind( invoke_func, f, std::placeholders::_1, false));
+		//return std::make_tuple(false, std::bind( & BoostRPCInvoker_First<Function>::apply, f, std::placeholders::_1));
 		//const int n = sizeof...(ArgTypes);
 		//return prefunc(false, std::make_index_sequence<n>{});
 		//return std::make_tuple(false, std::bind( & BoostRPCInvoker<Function>::apply<ArgTypes...>, f, std::placeholders::_1, typename std::tuple_element<n, placeholders_list>::type{}std::make_index_sequence<n>{}));
@@ -928,7 +769,8 @@ struct GetBoundPointer_CPP
 //	typedef typename GetBoundPointer_CPP type;
 	static FunctionPointer GetBoundPointer(Function f)
 	{
-		return std::make_tuple(true, std::bind( & BoostRPCInvoker_ThisPtr_First<Function>::apply, f, std::placeholders::_1));
+        InvokeResultCodes (RpcInvoker<decltype(f )>::*invoke_func)(InvokeArgs) = &RpcInvoker<decltype(f )>::apply;
+		return std::make_tuple(true, std::bind( invoke_func, f, std::placeholders::_1, true));
 		//const int n = sizeof...(ArgTypes) + 1;
 		//return prefunc(true, std::make_index_sequence<n>{});
 		//  apply<EMPTY_SEQUENCE? OR char*>  --   std::iterator_traits
