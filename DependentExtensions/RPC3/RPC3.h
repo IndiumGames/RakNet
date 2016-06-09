@@ -144,8 +144,6 @@ public:
 	template<typename Function>
 	void RegisterSlot(const char *sharedIdentifier, Function functionPtr, NetworkID objectInstanceId, int callPriority)
 	{
-		// TODO: NOT WORKING WITH THE NEW WAY.
-		/*
 		_RPC3::FunctionPointer fp;
 		fp= _RPC3::GetBoundPointer(functionPtr);
 		LocalSlotObject lso(objectInstanceId, nextSlotRegistrationCount++, callPriority, _RPC3::GetBoundPointer(functionPtr));
@@ -160,7 +158,7 @@ public:
 		{
 			localSlot=localSlots.ItemAtIndex(idx);
 		}
-		localSlot->slotObjects.Insert(lso,lso,true,_FILE_AND_LINE_);*/
+		localSlot->slotObjects.Insert(lso,lso,true,_FILE_AND_LINE_);
 	}
 
 	/// Unregisters a function pointer to be callable given an identifier for the pointer
@@ -236,117 +234,9 @@ public:
 	/// \note If the call fails on the remote system, you will get back ID_RPC_REMOTE_ERROR. packet->data[1] will contain one of the values of RPCErrorCodes. packet->data[2] and on will contain the name of the function.
 	///
 	/// \param[in] uniqueIdentifier parameter of the same name passed to RegisterFunction() on the remote system
-	// TODO: These coulf use variadic template.
-	bool Call(const char *uniqueIdentifier){
-		RakNet::BitStream bitStream;
-		return SendCallOrSignal(uniqueIdentifier, 0, &bitStream, true);
-	}
-	template <class P1>
-	bool Call(const char *uniqueIdentifier, P1 &p1)	{
-		RakNet::BitStream bitStream;
-		_RPC3::SerializeCallParameterBranch<P1>::type::apply(bitStream, p1);
-		return SendCallOrSignal(uniqueIdentifier, 1, &bitStream, true);
-	}
-	template <class P1, class P2>
-	bool Call(const char *uniqueIdentifier, P1 &p1, P2 &p2)	{
-		RakNet::BitStream bitStream;
-		_RPC3::SerializeCallParameterBranch<P1>::type::apply(bitStream, p1);
-		_RPC3::SerializeCallParameterBranch<P2>::type::apply(bitStream, p2);
-		return SendCallOrSignal(uniqueIdentifier, 2, &bitStream, true);
-	}
-	template <class P1, class P2, class P3>
-	bool Call(const char *uniqueIdentifier, P1 &p1, P2 &p2, P3 &p3)	{
-		RakNet::BitStream bitStream;
-		_RPC3::SerializeCallParameterBranch<P1>::type::apply(bitStream, p1);
-		_RPC3::SerializeCallParameterBranch<P2>::type::apply(bitStream, p2);
-		_RPC3::SerializeCallParameterBranch<P3>::type::apply(bitStream, p3);
-		return SendCallOrSignal(uniqueIdentifier, 3, &bitStream, true);
-	}
-	template <class P1, class P2, class P3, class P4>
-	bool Call(const char *uniqueIdentifier, P1 &p1, P2 &p2, P3 &p3, P4 &p4)	{
-		RakNet::BitStream bitStream;
-		_RPC3::SerializeCallParameterBranch<P1>::type::apply(bitStream, p1);
-		_RPC3::SerializeCallParameterBranch<P2>::type::apply(bitStream, p2);
-		_RPC3::SerializeCallParameterBranch<P3>::type::apply(bitStream, p3);
-		_RPC3::SerializeCallParameterBranch<P4>::type::apply(bitStream, p4);
-		return SendCallOrSignal(uniqueIdentifier, 4, &bitStream, true);
-	}
-	template <class P1, class P2, class P3, class P4, class P5>
-	bool Call(const char *uniqueIdentifier, P1 &p1, P2 &p2, P3 &p3, P4 &p4, P5 &p5)	{
-		RakNet::BitStream bitStream;
-		_RPC3::SerializeCallParameterBranch<P1>::type::apply(bitStream, p1);
-		_RPC3::SerializeCallParameterBranch<P2>::type::apply(bitStream, p2);
-		_RPC3::SerializeCallParameterBranch<P3>::type::apply(bitStream, p3);
-		_RPC3::SerializeCallParameterBranch<P4>::type::apply(bitStream, p4);
-		_RPC3::SerializeCallParameterBranch<P5>::type::apply(bitStream, p5);
-		return SendCallOrSignal(uniqueIdentifier, 5, &bitStream, true);
-	}
-	template <class P1, class P2, class P3, class P4, class P5, class P6>
-	bool Call(const char *uniqueIdentifier, P1 &p1, P2 &p2, P3 &p3, P4 &p4, P5 &p5, P6 &p6)	{
-		RakNet::BitStream bitStream;
-		_RPC3::SerializeCallParameterBranch<P1>::type::apply(bitStream, p1);
-		_RPC3::SerializeCallParameterBranch<P2>::type::apply(bitStream, p2);
-		_RPC3::SerializeCallParameterBranch<P3>::type::apply(bitStream, p3);
-		_RPC3::SerializeCallParameterBranch<P4>::type::apply(bitStream, p4);
-		_RPC3::SerializeCallParameterBranch<P5>::type::apply(bitStream, p5);
-		_RPC3::SerializeCallParameterBranch<P6>::type::apply(bitStream, p6);
-		return SendCallOrSignal(uniqueIdentifier, 6, &bitStream, true);
-	}
-	template <class P1, class P2, class P3, class P4, class P5, class P6, class P7>
-	bool Call(const char *uniqueIdentifier, P1 &p1, P2 &p2, P3 &p3, P4 &p4, P5 &p5, P6 &p6, P7 &p7)	{
-		RakNet::BitStream bitStream;
-		_RPC3::SerializeCallParameterBranch<P1>::type::apply(bitStream, p1);
-		_RPC3::SerializeCallParameterBranch<P2>::type::apply(bitStream, p2);
-		_RPC3::SerializeCallParameterBranch<P3>::type::apply(bitStream, p3);
-		_RPC3::SerializeCallParameterBranch<P4>::type::apply(bitStream, p4);
-		_RPC3::SerializeCallParameterBranch<P5>::type::apply(bitStream, p5);
-		_RPC3::SerializeCallParameterBranch<P6>::type::apply(bitStream, p6);
-		_RPC3::SerializeCallParameterBranch<P7>::type::apply(bitStream, p7);
-		return SendCallOrSignal(uniqueIdentifier, 7, &bitStream, true);
-	}
-	template <class P1, class P2, class P3, class P4, class P5, class P6, class P7, class P8>
-	bool Call(const char *uniqueIdentifier, P1 &p1, P2 &p2, P3 &p3, P4 &p4, P5 &p5, P6 &p6, P7 &p7, P8 &p8)	{
-		RakNet::BitStream bitStream;
-		_RPC3::SerializeCallParameterBranch<P1>::type::apply(bitStream, p1);
-		_RPC3::SerializeCallParameterBranch<P2>::type::apply(bitStream, p2);
-		_RPC3::SerializeCallParameterBranch<P3>::type::apply(bitStream, p3);
-		_RPC3::SerializeCallParameterBranch<P4>::type::apply(bitStream, p4);
-		_RPC3::SerializeCallParameterBranch<P5>::type::apply(bitStream, p5);
-		_RPC3::SerializeCallParameterBranch<P6>::type::apply(bitStream, p6);
-		_RPC3::SerializeCallParameterBranch<P7>::type::apply(bitStream, p7);
-		_RPC3::SerializeCallParameterBranch<P8>::type::apply(bitStream, p8);
-		return SendCallOrSignal(uniqueIdentifier, 8, &bitStream, true);
-	}
-	template <class P1, class P2, class P3, class P4, class P5, class P6, class P7, class P8, class P9>
-	bool Call(const char *uniqueIdentifier, P1 &p1, P2 &p2, P3 &p3, P4 &p4, P5 &p5, P6 &p6, P7 &p7, P8 &p8, P9 &p9)	{
-		RakNet::BitStream bitStream;
-		_RPC3::SerializeCallParameterBranch<P1>::type::apply(bitStream, p1);
-		_RPC3::SerializeCallParameterBranch<P2>::type::apply(bitStream, p2);
-		_RPC3::SerializeCallParameterBranch<P3>::type::apply(bitStream, p3);
-		_RPC3::SerializeCallParameterBranch<P4>::type::apply(bitStream, p4);
-		_RPC3::SerializeCallParameterBranch<P5>::type::apply(bitStream, p5);
-		_RPC3::SerializeCallParameterBranch<P6>::type::apply(bitStream, p6);
-		_RPC3::SerializeCallParameterBranch<P7>::type::apply(bitStream, p7);
-		_RPC3::SerializeCallParameterBranch<P8>::type::apply(bitStream, p8);
-		_RPC3::SerializeCallParameterBranch<P9>::type::apply(bitStream, p9);
-		// bitStream.PrintBits();
-		return SendCallOrSignal(uniqueIdentifier, 9, &bitStream, true);
-	}
-	template <class P1, class P2, class P3, class P4, class P5, class P6, class P7, class P8, class P9, class P10>
-	bool Call(const char *uniqueIdentifier, P1 &p1, P2 &p2, P3 &p3, P4 &p4, P5 &p5, P6 &p6, P7 &p7, P8 &p8, P9 &p9, P10 &p10)	{
-		RakNet::BitStream bitStream;
-		_RPC3::SerializeCallParameterBranch<P1>::type::apply(bitStream, p1);
-		_RPC3::SerializeCallParameterBranch<P2>::type::apply(bitStream, p2);
-		_RPC3::SerializeCallParameterBranch<P3>::type::apply(bitStream, p3);
-		_RPC3::SerializeCallParameterBranch<P4>::type::apply(bitStream, p4);
-		_RPC3::SerializeCallParameterBranch<P5>::type::apply(bitStream, p5);
-		_RPC3::SerializeCallParameterBranch<P6>::type::apply(bitStream, p6);
-		_RPC3::SerializeCallParameterBranch<P7>::type::apply(bitStream, p7);
-		_RPC3::SerializeCallParameterBranch<P8>::type::apply(bitStream, p8);
-		_RPC3::SerializeCallParameterBranch<P9>::type::apply(bitStream, p9);
-		_RPC3::SerializeCallParameterBranch<P10>::type::apply(bitStream, p10);
-		// bitStream.PrintBits();
-		return SendCallOrSignal(uniqueIdentifier, 10, &bitStream, true);
+	template<typename... Args>
+	bool Call(const char *uniqueIdentifier, Args... args) {
+		return _RPC3::RpcCall::Call(this, uniqueIdentifier, sizeof...(Args), args...);
 	}
 
 	struct CallExplicitParameters
@@ -379,177 +269,27 @@ public:
 	/// \param[in] systemAddress See SetRecipientAddress()
 	/// \param[in] broadcast See SetRecipientAddress()
 	/// \param[in] networkID See SetRecipientObject()
-	bool CallExplicit(const char *uniqueIdentifier, const CallExplicitParameters * const callExplicitParameters){
+	template<typename... Args>
+	bool CallExplicit(const char *uniqueIdentifier, const CallExplicitParameters * const callExplicitParameters, Args... args) {
 		SetTimestamp(callExplicitParameters->timeStamp);
 		SetSendParams(callExplicitParameters->priority, callExplicitParameters->reliability, callExplicitParameters->orderingChannel);
 		SetRecipientAddress(callExplicitParameters->systemAddress, callExplicitParameters->broadcast);
 		SetRecipientObject(callExplicitParameters->networkID);
-		return Call(uniqueIdentifier);
-	}
-	template <class P1 >
-	bool CallExplicit(const char *uniqueIdentifier, const CallExplicitParameters * const callExplicitParameters,
-		P1 &p1
-		)	{
-			SetTimestamp(callExplicitParameters->timeStamp);
-			SetSendParams(callExplicitParameters->priority, callExplicitParameters->reliability, callExplicitParameters->orderingChannel);
-			SetRecipientAddress(callExplicitParameters->systemAddress, callExplicitParameters->broadcast);
-			SetRecipientObject(callExplicitParameters->networkID);
-			return Call(uniqueIdentifier, p1);
-	}
-	template <class P1, class P2 >
-	bool CallExplicit(const char *uniqueIdentifier, const CallExplicitParameters * const callExplicitParameters,
-		P1 &p1, P2 &p2
-		)	{
-			SetTimestamp(callExplicitParameters->timeStamp);
-			SetSendParams(callExplicitParameters->priority, callExplicitParameters->reliability, callExplicitParameters->orderingChannel);
-			SetRecipientAddress(callExplicitParameters->systemAddress, callExplicitParameters->broadcast);
-			SetRecipientObject(callExplicitParameters->networkID);
-			return Call(uniqueIdentifier, p1, p2);
-	}
-	template <class P1, class P2, class P3 >
-	bool CallExplicit(const char *uniqueIdentifier, const CallExplicitParameters * const callExplicitParameters,
-		P1 &p1, P2 &p2, P3 &p3
-		)	{
-			SetTimestamp(callExplicitParameters->timeStamp);
-			SetSendParams(callExplicitParameters->priority, callExplicitParameters->reliability, callExplicitParameters->orderingChannel);
-			SetRecipientAddress(callExplicitParameters->systemAddress, callExplicitParameters->broadcast);
-			SetRecipientObject(callExplicitParameters->networkID);
-			return Call(uniqueIdentifier, p1, p2, p3);
-	}
-	template <class P1, class P2, class P3, class P4 >
-	bool CallExplicit(const char *uniqueIdentifier, const CallExplicitParameters * const callExplicitParameters,
-		P1 &p1, P2 &p2, P3 &p3, P4 &p4
-		)	{
-			SetTimestamp(callExplicitParameters->timeStamp);
-			SetSendParams(callExplicitParameters->priority, callExplicitParameters->reliability, callExplicitParameters->orderingChannel);
-			SetRecipientAddress(callExplicitParameters->systemAddress, callExplicitParameters->broadcast);
-			SetRecipientObject(callExplicitParameters->networkID);
-			return Call(uniqueIdentifier, p1, p2, p3, p4);
-	}
-	template <class P1, class P2, class P3, class P4, class P5 >
-	bool CallExplicit(const char *uniqueIdentifier, const CallExplicitParameters * const callExplicitParameters,
-		P1 &p1, P2 &p2, P3 &p3, P4 &p4, P5 &p5
-		)	{
-			SetTimestamp(callExplicitParameters->timeStamp);
-			SetSendParams(callExplicitParameters->priority, callExplicitParameters->reliability, callExplicitParameters->orderingChannel);
-			SetRecipientAddress(callExplicitParameters->systemAddress, callExplicitParameters->broadcast);
-			SetRecipientObject(callExplicitParameters->networkID);
-			return Call(uniqueIdentifier, p1, p2, p3, p4, p5);
-	}
-	template <class P1, class P2, class P3, class P4, class P5, class P6 >
-	bool CallExplicit(const char *uniqueIdentifier, const CallExplicitParameters * const callExplicitParameters,
-		P1 &p1, P2 &p2, P3 &p3, P4 &p4, P5 &p5, P6 &p6
-		)	{
-			SetTimestamp(callExplicitParameters->timeStamp);
-			SetSendParams(callExplicitParameters->priority, callExplicitParameters->reliability, callExplicitParameters->orderingChannel);
-			SetRecipientAddress(callExplicitParameters->systemAddress, callExplicitParameters->broadcast);
-			SetRecipientObject(callExplicitParameters->networkID);
-			return Call(uniqueIdentifier, p1, p2, p3, p4, p5, p6);
-	}
-	template <class P1, class P2, class P3, class P4, class P5, class P6, class P7 >
-	bool CallExplicit(const char *uniqueIdentifier, const CallExplicitParameters * const callExplicitParameters,
-		P1 &p1, P2 &p2, P3 &p3, P4 &p4, P5 &p5, P6 &p6, P7 &p7
-		)	{
-			SetTimestamp(callExplicitParameters->timeStamp);
-			SetSendParams(callExplicitParameters->priority, callExplicitParameters->reliability, callExplicitParameters->orderingChannel);
-			SetRecipientAddress(callExplicitParameters->systemAddress, callExplicitParameters->broadcast);
-			SetRecipientObject(callExplicitParameters->networkID);
-			return Call(uniqueIdentifier, p1, p2, p3, p4, p5, p6, p7);
-	}
-	template <class P1, class P2, class P3, class P4, class P5, class P6, class P7, class P8 >
-	bool CallExplicit(const char *uniqueIdentifier, const CallExplicitParameters * const callExplicitParameters,
-		P1 &p1, P2 &p2, P3 &p3, P4 &p4, P5 &p5, P6 &p6, P7 &p7, P8 &p8
-		)	{
-			SetTimestamp(callExplicitParameters->timeStamp);
-			SetSendParams(callExplicitParameters->priority, callExplicitParameters->reliability, callExplicitParameters->orderingChannel);
-			SetRecipientAddress(callExplicitParameters->systemAddress, callExplicitParameters->broadcast);
-			SetRecipientObject(callExplicitParameters->networkID);
-			return Call(uniqueIdentifier, p1, p2, p3, p4, p5, p6, p7, p8);
-	}
-	template <class P1, class P2, class P3, class P4, class P5, class P6, class P7, class P8, class P9 >
-	bool CallExplicit(const char *uniqueIdentifier, const CallExplicitParameters * const callExplicitParameters,
-		P1 &p1, P2 &p2, P3 &p3, P4 &p4, P5 &p5, P6 &p6, P7 &p7, P8 &p8, P9 &p9
-		)	{
-			SetTimestamp(callExplicitParameters->timeStamp);
-			SetSendParams(callExplicitParameters->priority, callExplicitParameters->reliability, callExplicitParameters->orderingChannel);
-			SetRecipientAddress(callExplicitParameters->systemAddress, callExplicitParameters->broadcast);
-			SetRecipientObject(callExplicitParameters->networkID);
-			return Call(uniqueIdentifier, p1, p2, p3, p4, p5, p6, p7, p8, p9);
-	}
-	template <class P1, class P2, class P3, class P4, class P5, class P6, class P7, class P8, class P9, class P10 >
-	bool CallExplicit(const char *uniqueIdentifier, const CallExplicitParameters * const callExplicitParameters,
-		P1 &p1, P2 &p2, P3 &p3, P4 &p4, P5 &p5, P6 &p6, P7 &p7, P8 &p8, P9 &p9, P10 &p10
-		)	{
-			SetTimestamp(callExplicitParameters->timeStamp);
-			SetSendParams(callExplicitParameters->priority, callExplicitParameters->reliability, callExplicitParameters->orderingChannel);
-			SetRecipientAddress(callExplicitParameters->systemAddress, callExplicitParameters->broadcast);
-			SetRecipientObject(callExplicitParameters->networkID);
-			return Call(uniqueIdentifier, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10);
+		return _RPC3::RpcCall::Call(this, uniqueIdentifier, sizeof...(Args), args...);
 	}
 
-	bool CallC(const char *uniqueIdentifier) {SetRecipientObject(UNASSIGNED_NETWORK_ID); return Call(uniqueIdentifier);}
+	template<typename... Args>
+	bool CallC(const char *uniqueIdentifier, Args... args) {
+		SetRecipientObject(UNASSIGNED_NETWORK_ID);
+		return _RPC3::RpcCall::Call(this, uniqueIdentifier, sizeof...(Args), args...);
+	}
 
-	template <class P1>
-	bool CallC(const char *uniqueIdentifier, P1 &p1) {SetRecipientObject(UNASSIGNED_NETWORK_ID); return Call(uniqueIdentifier,p1);}
+	template<typename... Args>
+	bool CallCPP(const char *uniqueIdentifier, NetworkID nid, Args... args) {
+		SetRecipientObject(nid);
+		return _RPC3::RpcCall::Call(this, uniqueIdentifier, sizeof...(Args), args...);
+	}
 
-	template <class P1, class P2>
-	bool CallC(const char *uniqueIdentifier, P1 &p1, P2 &p2) {SetRecipientObject(UNASSIGNED_NETWORK_ID); return Call(uniqueIdentifier,p1,p2);}
-
-	template <class P1, class P2, class P3>
-	bool CallC(const char *uniqueIdentifier, P1 &p1, P2 &p2, P3 &p3) {SetRecipientObject(UNASSIGNED_NETWORK_ID); return Call(uniqueIdentifier,p1,p2,p3);}
-
-	template <class P1, class P2, class P3, class P4>
-	bool CallC(const char *uniqueIdentifier, P1 &p1, P2 &p2, P3 &p3, P4 &p4) {SetRecipientObject(UNASSIGNED_NETWORK_ID); return Call(uniqueIdentifier,p1,p2,p3,p4);}
-
-	template <class P1, class P2, class P3, class P4, class P5>
-	bool CallC(const char *uniqueIdentifier, P1 &p1, P2 &p2, P3 &p3, P4 &p4, P5 &p5) {SetRecipientObject(UNASSIGNED_NETWORK_ID); return Call(uniqueIdentifier,p1,p2,p3,p4,p5);}
-
-	template <class P1, class P2, class P3, class P4, class P5, class P6>
-	bool CallC(const char *uniqueIdentifier, P1 &p1, P2 &p2, P3 &p3, P4 &p4, P5 &p5, P6 &p6) {SetRecipientObject(UNASSIGNED_NETWORK_ID); return Call(uniqueIdentifier,p1,p2,p3,p4,p5,p6);}
-
-	template <class P1, class P2, class P3, class P4, class P5, class P6, class P7>
-	bool CallC(const char *uniqueIdentifier, P1 &p1, P2 &p2, P3 &p3, P4 &p4, P5 &p5, P6 &p6, P7 &p7) {SetRecipientObject(UNASSIGNED_NETWORK_ID); return Call(uniqueIdentifier,p1,p2,p3,p4,p5,p6,p7);}
-
-	template <class P1, class P2, class P3, class P4, class P5, class P6, class P7, class P8>
-	bool CallC(const char *uniqueIdentifier, P1 &p1, P2 &p2, P3 &p3, P4 &p4, P5 &p5, P6 &p6, P7 &p7, P8 &p8) {SetRecipientObject(UNASSIGNED_NETWORK_ID); return Call(uniqueIdentifier,p1,p2,p3,p4,p5,p6,p7,p8);}
-
-	template <class P1, class P2, class P3, class P4, class P5, class P6, class P7, class P8, class P9>
-	bool CallC(const char *uniqueIdentifier, P1 &p1, P2 &p2, P3 &p3, P4 &p4, P5 &p5, P6 &p6, P7 &p7, P8 &p8, P9 &p9) {SetRecipientObject(UNASSIGNED_NETWORK_ID); return Call(uniqueIdentifier,p1,p2,p3,p4,p5,p6,p7,p8,p9);}
-
-	template <class P1, class P2, class P3, class P4, class P5, class P6, class P7, class P8, class P9, class P10>
-	bool CallC(const char *uniqueIdentifier, P1 &p1, P2 &p2, P3 &p3, P4 &p4, P5 &p5, P6 &p6, P7 &p7, P8 &p8, P9 &p9, P10 &p10) {SetRecipientObject(UNASSIGNED_NETWORK_ID); return Call(uniqueIdentifier,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10);}
-
-	bool CallCPP(const char *uniqueIdentifier, NetworkID nid) { SetRecipientObject(nid); return Call(uniqueIdentifier); }
-
-	template <class P1>
-	bool CallCPP(const char *uniqueIdentifier, NetworkID nid, P1 &p1) { SetRecipientObject(nid); return Call(uniqueIdentifier,p1); }
-
-	template <class P1, class P2>
-	bool CallCPP(const char *uniqueIdentifier, NetworkID nid, P1 &p1, P2 &p2) { SetRecipientObject(nid); return Call(uniqueIdentifier,p1,p2); }
-
-	template <class P1, class P2, class P3>
-	bool CallCPP(const char *uniqueIdentifier, NetworkID nid, P1 &p1, P2 &p2, P3 &p3) { SetRecipientObject(nid); return Call(uniqueIdentifier,p1,p2,p3); }
-
-	template <class P1, class P2, class P3, class P4>
-	bool CallCPP(const char *uniqueIdentifier, NetworkID nid, P1 &p1, P2 &p2, P3 &p3, P4 &p4) { SetRecipientObject(nid); return Call(uniqueIdentifier,p1,p2,p3,p4); }
-
-	template <class P1, class P2, class P3, class P4, class P5>
-	bool CallCPP(const char *uniqueIdentifier, NetworkID nid, P1 &p1, P2 &p2, P3 &p3, P4 &p4, P5 &p5) { SetRecipientObject(nid); return Call(uniqueIdentifier,p1,p2,p3,p4,p5); }
-
-	template <class P1, class P2, class P3, class P4, class P5, class P6>
-	bool CallCPP(const char *uniqueIdentifier, NetworkID nid, P1 &p1, P2 &p2, P3 &p3, P4 &p4, P5 &p5, P6 &p6) { SetRecipientObject(nid); return Call(uniqueIdentifier,p1,p2,p3,p4,p5,p6); }
-
-	template <class P1, class P2, class P3, class P4, class P5, class P6, class P7>
-	bool CallCPP(const char *uniqueIdentifier, NetworkID nid, P1 &p1, P2 &p2, P3 &p3, P4 &p4, P5 &p5, P6 &p6, P7 &p7) { SetRecipientObject(nid); return Call(uniqueIdentifier,p1,p2,p3,p4,p5,p6,p7); }
-
-	template <class P1, class P2, class P3, class P4, class P5, class P6, class P7, class P8>
-	bool CallCPP(const char *uniqueIdentifier, NetworkID nid, P1 &p1, P2 &p2, P3 &p3, P4 &p4, P5 &p5, P6 &p6, P7 &p7, P8 &p8) { SetRecipientObject(nid); return Call(uniqueIdentifier,p1,p2,p3,p4,p5,p6,p7,p8); }
-
-	template <class P1, class P2, class P3, class P4, class P5, class P6, class P7, class P8, class P9>
-	bool CallCPP(const char *uniqueIdentifier, NetworkID nid, P1 &p1, P2 &p2, P3 &p3, P4 &p4, P5 &p5, P6 &p6, P7 &p7, P8 &p8, P9 &p9) { SetRecipientObject(nid); return Call(uniqueIdentifier,p1,p2,p3,p4,p5,p6,p7,p8,p9); }
-
-	template <class P1, class P2, class P3, class P4, class P5, class P6, class P7, class P8, class P9, class P10>
-	bool CallCPP(const char *uniqueIdentifier, NetworkID nid, P1 &p1, P2 &p2, P3 &p3, P4 &p4, P5 &p5, P6 &p6, P7 &p7, P8 &p8, P9 &p9, P10 &p10)	{ SetRecipientObject(nid); return Call(uniqueIdentifier,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10); }
 
 	// ---------------------------- Signals and slots ----------------------------------
 
@@ -560,6 +300,7 @@ public:
 	/// See the Call() function for a description of parameters
 	///
 	/// \param[in] sharedIdentifier parameter of the same name passed to RegisterSlot() on the remote system
+	
 	bool Signal(const char *sharedIdentifier){
 		RakNet::BitStream bitStream;
 		InvokeSignal(GetLocalSlotIndex(sharedIdentifier), &bitStream, true);

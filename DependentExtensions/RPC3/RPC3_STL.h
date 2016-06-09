@@ -535,6 +535,7 @@ struct RpcInvoker<R(Args...)> {
                                                 InvokeResultCodes &irc) {
         auto arg = std::get<I>(args);
         ProcessArgType<decltype(arg)>::type::apply(functionArgs, arg);
+        std::get<I>(args) = arg;
         
     	RpcInvoker<decltype(func)>::template
     	                            apply<I+1>(func, functionArgs, args, irc);
@@ -579,6 +580,7 @@ struct RpcInvokerCpp<R(Args...)> {
                                                 InvokeResultCodes &irc) {
         auto arg = std::get<I>(args);
         ProcessArgType<decltype(arg)>::type::apply(functionArgs, arg);
+        std::get<I>(args) = arg;
         
     	RpcInvokerCpp<decltype(func)>::template
     	                            apply<I+1>(func, functionArgs, args, irc);
@@ -784,51 +786,65 @@ FunctionPointer prefunc(bool isCppPointer, std::index_sequence<Ints...>) {
 }*/
 							   
 template<typename Function>
-struct GetBoundPointer_C
-{
-//	typedef typename GetBoundPointer_C type;
-	static FunctionPointer GetBoundPointer(Function f)
-	{
-        //InvokeResultCodes(RpcInvoker<decltype(f)>::*invoke_func)(InvokeArgs) = &RpcInvoker<decltype(f)>::applyer;
-		return std::make_tuple(false, std::bind( static_cast<InvokeResultCodes(*)(Function, InvokeArgs)>(&RpcInvoker<decltype(f)>::applyer), f, std::placeholders::_1));
-		//return std::make_tuple(false, std::bind( & BoostRPCInvoker_First<Function>::apply, f, std::placeholders::_1));
-		//const int n = sizeof...(ArgTypes);
-		//return prefunc(false, std::make_index_sequence<n>{});
-		//return std::make_tuple(false, std::bind( & BoostRPCInvoker<Function>::apply<ArgTypes...>, f, std::placeholders::_1, typename std::tuple_element<n, placeholders_list>::type{}std::make_index_sequence<n>{}));
+struct GetBoundPointer_C {
+	static FunctionPointer GetBoundPointer(Function f) {
+    	return std::make_tuple(false,
+            std::bind(static_cast<InvokeResultCodes(*)(Function, InvokeArgs)>
+                (&RpcInvoker<decltype(f)>::applyer), f, std::placeholders::_1));
 	}
 };
 
 template<typename Function>
-struct GetBoundPointer_CPP
-{
-//	typedef typename GetBoundPointer_CPP type;
-	static FunctionPointer GetBoundPointer(Function f)
-	{
-        //= &RpcInvoker<decltype(f)>::applyer;
-		return std::make_tuple(true, std::bind( static_cast<InvokeResultCodes(*)(Function, InvokeArgs)>(&RpcInvokerCpp<decltype(f)>::applyer), f, std::placeholders::_1));
-        //return std::bind( static_cast<int(*)(int, float, std::string, Function)>(&dd::ff), 1, 2.0, std::placeholders::_1, f);
-        
-		//const int n = sizeof...(ArgTypes) + 1;
-		//return prefunc(true, std::make_index_sequence<n>{});
-		//  apply<EMPTY_SEQUENCE? OR char*>  --   std::iterator_traits
-		//typedef std::function<Function> func;
-		//return std::make_tuple(true, std::bind( & BoostRPCInvoker_ThisPtr<Function>::apply<std::placeholders::_2>, f, std::placeholders::_1, std::placeholders::_2 ));
-	}
+struct GetBoundPointer_CPP {
+	static FunctionPointer GetBoundPointer(Function f) {
+		return std::make_tuple(true,
+            std::bind(static_cast<InvokeResultCodes(*)(Function, InvokeArgs)>
+                (&RpcInvokerCpp<decltype(f)>::applyer), f, std::placeholders::_1));
+    }
 };
 
 
 template<typename Function>
-FunctionPointer GetBoundPointer(Function f)
-{
+FunctionPointer GetBoundPointer(Function f) {
 	return std::conditional<
 	std::is_member_function_pointer<Function>::value
 	, GetBoundPointer_CPP<Function>
 	, GetBoundPointer_C<Function>
 	>::type::GetBoundPointer(f);
-	
-//	return FunctionPointer(true, boost::bind( & BoostRPCInvoker<Function>::apply<boost::fusion::nil>, f, std::placeholders::_1, boost::fusion::nil() ) );
 }
 
+
+struct RpcCall {
+    template<typename Rpc, typename... Args>
+    static inline bool Call(Rpc *rpc, const char *uniqueIdentifier, int argCount, Args... args) {
+        RakNet::BitStream bitStream;
+        bool result = false;
+        
+        RpcCall::Call(rpc, uniqueIdentifier, bitStream, result, argCount, args...);
+        
+        return result;
+    }
+    
+	template<typename Rpc>
+	static inline void Call(Rpc *rpc, const char *uniqueIdentifier, RakNet::BitStream &bitStream, bool &result, int argCount) {
+		result = rpc->SendCallOrSignal(uniqueIdentifier, argCount, &bitStream, true);
+	}
+	
+	template<typename Rpc, typename Arg>
+	static inline void Call(Rpc *rpc, const char *uniqueIdentifier, RakNet::BitStream &bitStream, bool &result, int argCount, Arg &arg) {
+		_RPC3::SerializeCallParameterBranch<Arg>::type::apply(bitStream, arg);
+        
+        RpcCall::Call(rpc, uniqueIdentifier, bitStream, result, argCount);
+	}
+	
+	template<std::size_t I = 0, typename Rpc, typename Arg, typename... Args>
+	static inline typename std::enable_if<I < sizeof...(Args), void>::type
+			Call(Rpc *rpc, const char *uniqueIdentifier, RakNet::BitStream &bitStream, bool &result, int argCount, Arg &arg, Args... args) {
+		_RPC3::SerializeCallParameterBranch<Arg>::type::apply(bitStream, arg);
+        
+        RpcCall::Call(rpc, uniqueIdentifier, bitStream, result, argCount, args...);
+	}
+};
 
 }
 }
