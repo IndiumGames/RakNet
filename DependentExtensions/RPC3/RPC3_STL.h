@@ -139,7 +139,7 @@ struct InvokeArgs
 	NetworkIDObject *thisPtr;
 };
 
-typedef std::tuple<bool, std::function<InvokeResultCodes (InvokeArgs)> > FunctionPointer;
+typedef std::tuple<bool, std::function<InvokeResultCodes(InvokeArgs)> > FunctionPointer;
 
 struct StrWithDestructor
 {
@@ -500,23 +500,22 @@ struct ProcessArgType
 };
 
 
-template<class F>
+template<typename F>
 struct RpcInvoker;
 
-template<class R, class... Args>
+template<typename R, typename... Args>
 struct RpcInvoker<R(*)(Args...)> : public RpcInvoker<R(Args...)> {
 };
  
-template<class R, class... Args>
+template<typename R, typename... Args>
 struct RpcInvoker<R(Args...)> {
     template <typename Function>
-    static inline InvokeResultCodes apply(Function func,
-                        InvokeArgs &functionArgs, bool memberFunction = false) {
+    static inline InvokeResultCodes applyer(Function func,
+                                                    InvokeArgs functionArgs) {
     	std::tuple<Args...> args;
     	InvokeResultCodes irc = IRC_SUCCESS;
     	
-    	RpcInvoker<decltype(func)>::apply(
-                                func, functionArgs, args, irc, memberFunction);
+    	RpcInvoker<decltype(func)>::apply(func, functionArgs, args, irc);
     	
     	return irc;
     }
@@ -533,22 +532,58 @@ struct RpcInvoker<R(Args...)> {
 	static inline typename std::enable_if<I < sizeof...(Args), void>::type
 			apply(Function func, InvokeArgs &functionArgs,
                                 				std::tuple<Args...>& args,
-                                                InvokeResultCodes &irc,
-                                                bool memberFunction = false) {
-		// Get argument from functionArgs to std::get<I>(args)
-		auto arg = std::get<I>(args);
-    	if (memberFunction) {
-    	    arg = (decltype(arg)) *(functionArgs.thisPtr);
-    	}
-    	else {
-		    ProcessArgType<decltype(arg)>::type::apply(functionArgs, arg);
-        }
+                                                InvokeResultCodes &irc) {
+        auto arg = std::get<I>(args);
+        ProcessArgType<decltype(arg)>::type::apply(functionArgs, arg);
         
     	RpcInvoker<decltype(func)>::template
     	                            apply<I+1>(func, functionArgs, args, irc);
 	  }
-}; 
+};
 
+template<typename F>
+struct RpcInvokerCpp;
+
+template<typename R, typename... Args>
+struct RpcInvokerCpp<R(*)(Args...)> : public RpcInvokerCpp<R(Args...)> {
+};
+ 
+template<typename R, typename... Args>
+struct RpcInvokerCpp<R(Args...)> {
+    template <typename Function>
+    static inline InvokeResultCodes applyer(Function func,
+                                                    InvokeArgs functionArgs) {
+    	std::tuple<Args...> args;
+    	InvokeResultCodes irc = IRC_SUCCESS;
+    	
+        auto arg = std::get<0>(args);
+        arg = (decltype(arg)) *(functionArgs.thisPtr);
+        
+    	RpcInvokerCpp<decltype(func)>::apply(func, functionArgs, args, irc);
+    	
+    	return irc;
+    }
+    
+	template<std::size_t I = 0, typename Function>
+	static inline typename std::enable_if<I == sizeof...(Args), void>::type
+			apply(Function func, InvokeArgs &functionArgs,
+							std::tuple<Args...>& args, InvokeResultCodes &irc) {
+		INVOKE(func, args);
+		irc = IRC_SUCCESS;
+	}
+	
+	template<std::size_t I = 1, typename Function>
+	static inline typename std::enable_if<I < sizeof...(Args), void>::type
+			apply(Function func, InvokeArgs &functionArgs,
+                                				std::tuple<Args...>& args,
+                                                InvokeResultCodes &irc) {
+        auto arg = std::get<I>(args);
+        ProcessArgType<decltype(arg)>::type::apply(functionArgs, arg);
+        
+    	RpcInvokerCpp<decltype(func)>::template
+    	                            apply<I+1>(func, functionArgs, args, irc);
+	  }
+};
 
 template <typename T>
 struct DoNothing
@@ -754,8 +789,8 @@ struct GetBoundPointer_C
 //	typedef typename GetBoundPointer_C type;
 	static FunctionPointer GetBoundPointer(Function f)
 	{
-        InvokeResultCodes (RpcInvoker<decltype(f )>::*invoke_func)(InvokeArgs) = &RpcInvoker<decltype(f )>::apply;
-		return std::make_tuple(false, std::bind( invoke_func, f, std::placeholders::_1, false));
+        //InvokeResultCodes(RpcInvoker<decltype(f)>::*invoke_func)(InvokeArgs) = &RpcInvoker<decltype(f)>::applyer;
+		return std::make_tuple(false, std::bind( static_cast<InvokeResultCodes(*)(Function, InvokeArgs)>(&RpcInvoker<decltype(f)>::applyer), f, std::placeholders::_1));
 		//return std::make_tuple(false, std::bind( & BoostRPCInvoker_First<Function>::apply, f, std::placeholders::_1));
 		//const int n = sizeof...(ArgTypes);
 		//return prefunc(false, std::make_index_sequence<n>{});
@@ -769,8 +804,10 @@ struct GetBoundPointer_CPP
 //	typedef typename GetBoundPointer_CPP type;
 	static FunctionPointer GetBoundPointer(Function f)
 	{
-        InvokeResultCodes (RpcInvoker<decltype(f )>::*invoke_func)(InvokeArgs) = &RpcInvoker<decltype(f )>::apply;
-		return std::make_tuple(true, std::bind( invoke_func, f, std::placeholders::_1, true));
+        //= &RpcInvoker<decltype(f)>::applyer;
+		return std::make_tuple(true, std::bind( static_cast<InvokeResultCodes(*)(Function, InvokeArgs)>(&RpcInvokerCpp<decltype(f)>::applyer), f, std::placeholders::_1));
+        //return std::bind( static_cast<int(*)(int, float, std::string, Function)>(&dd::ff), 1, 2.0, std::placeholders::_1, f);
+        
 		//const int n = sizeof...(ArgTypes) + 1;
 		//return prefunc(true, std::make_index_sequence<n>{});
 		//  apply<EMPTY_SEQUENCE? OR char*>  --   std::iterator_traits

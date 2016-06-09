@@ -417,7 +417,7 @@ void RPC3::OnRPC3Call(const SystemAddress &systemAddress, unsigned char *data, u
 		
 		// serializedParameters.PrintBits();
 
-		_RPC3::InvokeResultCodes res2 = functionPtr(functionArgs);
+		_RPC3::InvokeResultCodes res2 = functionPtr(std::ref(functionArgs));
 	}
 	else
 	{
@@ -471,7 +471,7 @@ void RPC3::InvokeSignal(DataStructures::HashIndex functionIndex, RakNet::BitStre
 			}
 			return;
 		}
-		_RPC3::InvokeResultCodes res2 = functionPtr(functionArgs);
+		_RPC3::InvokeResultCodes res2 = functionPtr(std::ref(functionArgs));
 
 		// Not threadsafe
 		if (interruptSignal==true)

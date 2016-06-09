@@ -144,7 +144,7 @@ public:
 	template<typename Function>
 	void RegisterSlot(const char *sharedIdentifier, Function functionPtr, NetworkID objectInstanceId, int callPriority)
 	{
-		// TODO: NOT WROKING WITH THE NEW WAY.
+		// TODO: NOT WORKING WITH THE NEW WAY.
 		/*
 		_RPC3::FunctionPointer fp;
 		fp= _RPC3::GetBoundPointer(functionPtr);
