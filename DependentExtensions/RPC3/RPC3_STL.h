@@ -21,12 +21,15 @@
 /*INVOKE FUNCTIONS START
 TODO: Put these in to own generic file.
 */
+// To invoke C function with arguments.
 template <class F, class... Args>
 auto INVOKE(F&& f, Args&&... args) ->
     decltype(std::forward<F>(f)(std::forward<Args>(args)...)) {
         return std::forward<F>(f)(std::forward<Args>(args)...);
 }
 
+
+// To invoke C function without arguments.
 template <class F>
 auto INVOKE(F&& f) ->
     decltype(std::forward<F>(f)()) {
@@ -56,8 +59,33 @@ namespace detail {
         static void call(F && f, Tuple && t) {
         }
     };
+    
+    
+    template <typename Tuple, bool Done, int Total, int... N>
+    struct call_pmf_impl {
+		template<typename Ret, typename T, typename Obj>
+        static auto call(Ret T::*pmf, Obj &&objectPtr, Tuple && t) {
+            return call_pmf_impl<Tuple, Total == 1 + sizeof...(N), Total,
+            			N..., sizeof...(N)>::call(pmf, objectPtr, std::forward<Tuple>(t));
+        }
+    };
+
+    template <typename Tuple, int Total, int... N>
+    struct call_pmf_impl<Tuple, true, Total, N...> {
+		template<typename Ret, typename T, typename Obj>
+        static auto call(Ret T::*pmf, Obj &&objectPtr, Tuple && t) {
+    		return ((*std::forward<Obj>(objectPtr)).*pmf)(std::get<N>(std::forward<Tuple>(t))...);
+        }
+    };
+    template<typename Tuple>
+    struct empty_call_pmf_impl {
+		template<typename Ret, typename T, typename Obj>
+        static void call(Ret T::*pmf, Obj &&objectPtr, Tuple && t) {
+        }
+    };
 }
 
+// To invoke C function with arguments from tuple.
 template <class F, class Tuple>
 auto INVOKE(F&& f, Tuple&& t) {
     typedef typename std::decay<Tuple>::type ttype;
@@ -65,6 +93,14 @@ auto INVOKE(F&& f, Tuple&& t) {
                 std::tuple_size<ttype>::value>::call(f, std::forward<Tuple>(t));
 }
 
+
+// To invoke C++ member function with arguments from tuple.
+template<typename Ret, typename T, typename Obj, typename Tuple>
+auto INVOKE(Ret T::*pmf, Obj &&objectPtr, Tuple &&t) {
+	typedef typename std::decay<Tuple>::type ttype;
+	return detail::call_pmf_impl<Tuple, 0 == std::tuple_size<ttype>::value,
+				std::tuple_size<ttype>::value>::call(pmf, objectPtr, std::forward<Tuple>(t));
+}
 /*INVOKE FUNCTIONS END*/
 
 // Fixes
@@ -542,50 +578,43 @@ struct RpcInvoker<R(Args...)> {
 	  }
 };
 
-template<typename F>
+
 struct RpcInvokerCpp;
 
-template<typename R, typename... Args>
-struct RpcInvokerCpp<R(*)(Args...)> : public RpcInvokerCpp<R(Args...)> {
-};
- 
-template<typename R, typename... Args>
-struct RpcInvokerCpp<R(Args...)> {
-    template <typename Function>
-    static inline InvokeResultCodes applyer(Function func,
+struct RpcInvokerCpp {
+    template <typename Ret, typename C, typename... Args>
+    static inline InvokeResultCodes applyer(Ret(C::*func)(Args...),
                                                     InvokeArgs functionArgs) {
     	std::tuple<Args...> args;
     	InvokeResultCodes irc = IRC_SUCCESS;
     	
-        auto arg = std::get<0>(args);
-        arg = (decltype(arg)) *(functionArgs.thisPtr);
+        auto *objectPointer = (C *)functionArgs.thisPtr;
         
-    	RpcInvokerCpp<decltype(func)>::apply(func, functionArgs, args, irc);
+    	RpcInvokerCpp::apply(func, objectPointer, functionArgs, args, irc);
     	
     	return irc;
     }
     
-	template<std::size_t I = 0, typename Function>
+	template<std::size_t I = 0, typename Ret, typename C, typename... Args, typename Obj>
 	static inline typename std::enable_if<I == sizeof...(Args), void>::type
-			apply(Function func, InvokeArgs &functionArgs,
+			apply(Ret(C::*func)(Args...), Obj *object, InvokeArgs &functionArgs,
 							std::tuple<Args...>& args, InvokeResultCodes &irc) {
-		INVOKE(func, args);
+		INVOKE(func, object, args);
 		irc = IRC_SUCCESS;
 	}
 	
-	template<std::size_t I = 1, typename Function>
+	template<std::size_t I = 0, typename Ret, typename C, typename... Args, typename Obj>
 	static inline typename std::enable_if<I < sizeof...(Args), void>::type
-			apply(Function func, InvokeArgs &functionArgs,
-                                				std::tuple<Args...>& args,
-                                                InvokeResultCodes &irc) {
+			apply(Ret(C::*func)(Args...), Obj *object, InvokeArgs &functionArgs,
+                            std::tuple<Args...>& args, InvokeResultCodes &irc) {
         auto arg = std::get<I>(args);
         ProcessArgType<decltype(arg)>::type::apply(functionArgs, arg);
         std::get<I>(args) = arg;
         
-    	RpcInvokerCpp<decltype(func)>::template
-    	                            apply<I+1>(func, functionArgs, args, irc);
+    	RpcInvokerCpp::template apply<I+1>(func, object, functionArgs, args, irc);
 	  }
 };
+
 
 template <typename T>
 struct DoNothing
@@ -794,13 +823,17 @@ struct GetBoundPointer_C {
 	}
 };
 
-template<typename Function>
 struct GetBoundPointer_CPP {
-	static FunctionPointer GetBoundPointer(Function f) {
+    template <typename Ret, typename C, typename... Args>
+	static FunctionPointer GetBoundPointer(Ret(C::*f)(Args...))
+	{
 		return std::make_tuple(true,
-            std::bind(static_cast<InvokeResultCodes(*)(Function, InvokeArgs)>
-                (&RpcInvokerCpp<decltype(f)>::applyer), f, std::placeholders::_1));
-    }
+            std::bind(
+                static_cast<InvokeResultCodes(*)(Ret(C::*)(Args...), InvokeArgs)>
+                    (&RpcInvokerCpp::applyer), f, std::placeholders::_1
+            )
+        );
+	}
 };
 
 
@@ -808,7 +841,7 @@ template<typename Function>
 FunctionPointer GetBoundPointer(Function f) {
 	return std::conditional<
 	std::is_member_function_pointer<Function>::value
-	, GetBoundPointer_CPP<Function>
+	, GetBoundPointer_CPP
 	, GetBoundPointer_C<Function>
 	>::type::GetBoundPointer(f);
 }
