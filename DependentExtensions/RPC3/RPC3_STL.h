@@ -849,33 +849,46 @@ FunctionPointer GetBoundPointer(Function f) {
 
 struct RpcCall {
     template<typename Rpc, typename... Args>
-    static inline bool Call(Rpc *rpc, const char *uniqueIdentifier, int argCount, Args... args) {
+    static inline bool Call(Rpc *rpc, const char *identifier, int argCount,
+                                                    bool isCall, Args... args) {
         RakNet::BitStream bitStream;
         bool result = false;
         
-        RpcCall::Call(rpc, uniqueIdentifier, bitStream, result, argCount, args...);
+        RpcCall::Call(
+            rpc, identifier, bitStream, result, argCount, isCall, args...);
         
         return result;
     }
     
 	template<typename Rpc>
-	static inline void Call(Rpc *rpc, const char *uniqueIdentifier, RakNet::BitStream &bitStream, bool &result, int argCount) {
-		result = rpc->SendCallOrSignal(uniqueIdentifier, argCount, &bitStream, true);
+	static inline void Call(Rpc *rpc, const char *identifier,
+                        RakNet::BitStream &bitStream, bool &result,
+                        int argCount, bool isCall) {
+        if (!isCall) {
+		    rpc->InvokeSignal(rpc->GetLocalSlotIndex(identifier), &bitStream, true);
+        }
+        
+		result = rpc->SendCallOrSignal(
+                        identifier, argCount, &bitStream, isCall);
 	}
 	
 	template<typename Rpc, typename Arg>
-	static inline void Call(Rpc *rpc, const char *uniqueIdentifier, RakNet::BitStream &bitStream, bool &result, int argCount, Arg &arg) {
+	static inline void Call(Rpc *rpc, const char *identifier,
+        RakNet::BitStream &bitStream, bool &result, int argCount, bool isCall,
+                                                                    Arg &arg) {
 		_RPC3::SerializeCallParameterBranch<Arg>::type::apply(bitStream, arg);
         
-        RpcCall::Call(rpc, uniqueIdentifier, bitStream, result, argCount);
+        RpcCall::Call(rpc, identifier, bitStream, result, argCount, isCall);
 	}
 	
 	template<std::size_t I = 0, typename Rpc, typename Arg, typename... Args>
 	static inline typename std::enable_if<I < sizeof...(Args), void>::type
-			Call(Rpc *rpc, const char *uniqueIdentifier, RakNet::BitStream &bitStream, bool &result, int argCount, Arg &arg, Args... args) {
+			Call(Rpc *rpc, const char *identifier, RakNet::BitStream &bitStream,
+                bool &result, int argCount, bool isCall, Arg &arg, Args... args) {
 		_RPC3::SerializeCallParameterBranch<Arg>::type::apply(bitStream, arg);
         
-        RpcCall::Call(rpc, uniqueIdentifier, bitStream, result, argCount, args...);
+        RpcCall::Call(
+                rpc, identifier, bitStream, result, argCount, isCall, args...);
 	}
 };
 

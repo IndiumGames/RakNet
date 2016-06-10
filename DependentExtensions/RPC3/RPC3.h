@@ -236,7 +236,7 @@ public:
 	/// \param[in] uniqueIdentifier parameter of the same name passed to RegisterFunction() on the remote system
 	template<typename... Args>
 	bool Call(const char *uniqueIdentifier, Args... args) {
-		return _RPC3::RpcCall::Call(this, uniqueIdentifier, sizeof...(Args), args...);
+		return _RPC3::RpcCall::Call(this, uniqueIdentifier, sizeof...(Args), true, args...);
 	}
 
 	struct CallExplicitParameters
@@ -275,19 +275,19 @@ public:
 		SetSendParams(callExplicitParameters->priority, callExplicitParameters->reliability, callExplicitParameters->orderingChannel);
 		SetRecipientAddress(callExplicitParameters->systemAddress, callExplicitParameters->broadcast);
 		SetRecipientObject(callExplicitParameters->networkID);
-		return _RPC3::RpcCall::Call(this, uniqueIdentifier, sizeof...(Args), args...);
+		return Call(uniqueIdentifier, args...);
 	}
 
 	template<typename... Args>
 	bool CallC(const char *uniqueIdentifier, Args... args) {
 		SetRecipientObject(UNASSIGNED_NETWORK_ID);
-		return _RPC3::RpcCall::Call(this, uniqueIdentifier, sizeof...(Args), args...);
+		return Call(uniqueIdentifier, args...);
 	}
 
 	template<typename... Args>
 	bool CallCPP(const char *uniqueIdentifier, NetworkID nid, Args... args) {
 		SetRecipientObject(nid);
-		return _RPC3::RpcCall::Call(this, uniqueIdentifier, sizeof...(Args), args...);
+		return Call(uniqueIdentifier, args...);
 	}
 
 
@@ -301,126 +301,11 @@ public:
 	///
 	/// \param[in] sharedIdentifier parameter of the same name passed to RegisterSlot() on the remote system
 	
-	bool Signal(const char *sharedIdentifier){
-		RakNet::BitStream bitStream;
-		InvokeSignal(GetLocalSlotIndex(sharedIdentifier), &bitStream, true);
-		return SendCallOrSignal(sharedIdentifier, 0, &bitStream, false);
+	template<typename... Args>
+	bool Signal(const char *sharedIdentifier, Args... args){
+		return _RPC3::RpcCall::Call(this, sharedIdentifier, sizeof...(Args), false, args...);
 	}
-	template <class P1>
-	bool Signal(const char *sharedIdentifier, P1 &p1)	{
-		RakNet::BitStream bitStream;
-		_RPC3::SerializeCallParameterBranch<P1>::type::apply(bitStream, p1);
-		InvokeSignal(GetLocalSlotIndex(sharedIdentifier), &bitStream, true);
-		return SendCallOrSignal(sharedIdentifier, 1, &bitStream, false);
-	}
-	template <class P1, class P2>
-	bool Signal(const char *sharedIdentifier, P1 &p1, P2 &p2)	{
-		RakNet::BitStream bitStream;
-		_RPC3::SerializeCallParameterBranch<P1>::type::apply(bitStream, p1);
-		_RPC3::SerializeCallParameterBranch<P2>::type::apply(bitStream, p2);
-		InvokeSignal(GetLocalSlotIndex(sharedIdentifier), &bitStream, true);
-		return SendCallOrSignal(sharedIdentifier, 2, &bitStream, false);
-	}
-	template <class P1, class P2, class P3>
-	bool Signal(const char *sharedIdentifier, P1 &p1, P2 &p2, P3 &p3)	{
-		RakNet::BitStream bitStream;
-		_RPC3::SerializeCallParameterBranch<P1>::type::apply(bitStream, p1);
-		_RPC3::SerializeCallParameterBranch<P2>::type::apply(bitStream, p2);
-		_RPC3::SerializeCallParameterBranch<P3>::type::apply(bitStream, p3);
-		InvokeSignal(GetLocalSlotIndex(sharedIdentifier), &bitStream, true);
-		return SendCallOrSignal(sharedIdentifier, 3, &bitStream, false);
-	}
-	template <class P1, class P2, class P3, class P4>
-	bool Signal(const char *sharedIdentifier, P1 &p1, P2 &p2, P3 &p3, P4 &p4)	{
-		RakNet::BitStream bitStream;
-		_RPC3::SerializeCallParameterBranch<P1>::type::apply(bitStream, p1);
-		_RPC3::SerializeCallParameterBranch<P2>::type::apply(bitStream, p2);
-		_RPC3::SerializeCallParameterBranch<P3>::type::apply(bitStream, p3);
-		_RPC3::SerializeCallParameterBranch<P4>::type::apply(bitStream, p4);
-		InvokeSignal(GetLocalSlotIndex(sharedIdentifier), &bitStream, true);
-		return SendCallOrSignal(sharedIdentifier, 4, &bitStream, false);
-	}
-	template <class P1, class P2, class P3, class P4, class P5>
-	bool Signal(const char *sharedIdentifier, P1 &p1, P2 &p2, P3 &p3, P4 &p4, P5 &p5)	{
-		RakNet::BitStream bitStream;
-		_RPC3::SerializeCallParameterBranch<P1>::type::apply(bitStream, p1);
-		_RPC3::SerializeCallParameterBranch<P2>::type::apply(bitStream, p2);
-		_RPC3::SerializeCallParameterBranch<P3>::type::apply(bitStream, p3);
-		_RPC3::SerializeCallParameterBranch<P4>::type::apply(bitStream, p4);
-		_RPC3::SerializeCallParameterBranch<P5>::type::apply(bitStream, p5);
-		InvokeSignal(GetLocalSlotIndex(sharedIdentifier), &bitStream, true);
-		return SendCallOrSignal(sharedIdentifier, 5, &bitStream, false);
-	}
-	template <class P1, class P2, class P3, class P4, class P5, class P6>
-	bool Signal(const char *sharedIdentifier, P1 &p1, P2 &p2, P3 &p3, P4 &p4, P5 &p5, P6 &p6)	{
-		RakNet::BitStream bitStream;
-		_RPC3::SerializeCallParameterBranch<P1>::type::apply(bitStream, p1);
-		_RPC3::SerializeCallParameterBranch<P2>::type::apply(bitStream, p2);
-		_RPC3::SerializeCallParameterBranch<P3>::type::apply(bitStream, p3);
-		_RPC3::SerializeCallParameterBranch<P4>::type::apply(bitStream, p4);
-		_RPC3::SerializeCallParameterBranch<P5>::type::apply(bitStream, p5);
-		_RPC3::SerializeCallParameterBranch<P6>::type::apply(bitStream, p6);
-		InvokeSignal(GetLocalSlotIndex(sharedIdentifier), &bitStream, true);
-		return SendCallOrSignal(sharedIdentifier, 6, &bitStream, false);
-	}
-	template <class P1, class P2, class P3, class P4, class P5, class P6, class P7>
-	bool Signal(const char *sharedIdentifier, P1 &p1, P2 &p2, P3 &p3, P4 &p4, P5 &p5, P6 &p6, P7 &p7)	{
-		RakNet::BitStream bitStream;
-		_RPC3::SerializeCallParameterBranch<P1>::type::apply(bitStream, p1);
-		_RPC3::SerializeCallParameterBranch<P2>::type::apply(bitStream, p2);
-		_RPC3::SerializeCallParameterBranch<P3>::type::apply(bitStream, p3);
-		_RPC3::SerializeCallParameterBranch<P4>::type::apply(bitStream, p4);
-		_RPC3::SerializeCallParameterBranch<P5>::type::apply(bitStream, p5);
-		_RPC3::SerializeCallParameterBranch<P6>::type::apply(bitStream, p6);
-		_RPC3::SerializeCallParameterBranch<P7>::type::apply(bitStream, p7);
-		InvokeSignal(GetLocalSlotIndex(sharedIdentifier), &bitStream, true);
-		return SendCallOrSignal(sharedIdentifier, 7, &bitStream, false);
-	}
-	template <class P1, class P2, class P3, class P4, class P5, class P6, class P7, class P8>
-	bool Signal(const char *sharedIdentifier, P1 &p1, P2 &p2, P3 &p3, P4 &p4, P5 &p5, P6 &p6, P7 &p7, P8 &p8)	{
-		RakNet::BitStream bitStream;
-		_RPC3::SerializeCallParameterBranch<P1>::type::apply(bitStream, p1);
-		_RPC3::SerializeCallParameterBranch<P2>::type::apply(bitStream, p2);
-		_RPC3::SerializeCallParameterBranch<P3>::type::apply(bitStream, p3);
-		_RPC3::SerializeCallParameterBranch<P4>::type::apply(bitStream, p4);
-		_RPC3::SerializeCallParameterBranch<P5>::type::apply(bitStream, p5);
-		_RPC3::SerializeCallParameterBranch<P6>::type::apply(bitStream, p6);
-		_RPC3::SerializeCallParameterBranch<P7>::type::apply(bitStream, p7);
-		_RPC3::SerializeCallParameterBranch<P8>::type::apply(bitStream, p8);
-		InvokeSignal(GetLocalSlotIndex(sharedIdentifier), &bitStream, true);
-		return SendCallOrSignal(sharedIdentifier, 8, &bitStream, false);
-	}
-	template <class P1, class P2, class P3, class P4, class P5, class P6, class P7, class P8, class P9>
-	bool Signal(const char *sharedIdentifier, P1 &p1, P2 &p2, P3 &p3, P4 &p4, P5 &p5, P6 &p6, P7 &p7, P8 &p8, P9 &p9)	{
-		RakNet::BitStream bitStream;
-		_RPC3::SerializeCallParameterBranch<P1>::type::apply(bitStream, p1);
-		_RPC3::SerializeCallParameterBranch<P2>::type::apply(bitStream, p2);
-		_RPC3::SerializeCallParameterBranch<P3>::type::apply(bitStream, p3);
-		_RPC3::SerializeCallParameterBranch<P4>::type::apply(bitStream, p4);
-		_RPC3::SerializeCallParameterBranch<P5>::type::apply(bitStream, p5);
-		_RPC3::SerializeCallParameterBranch<P6>::type::apply(bitStream, p6);
-		_RPC3::SerializeCallParameterBranch<P7>::type::apply(bitStream, p7);
-		_RPC3::SerializeCallParameterBranch<P8>::type::apply(bitStream, p8);
-		_RPC3::SerializeCallParameterBranch<P9>::type::apply(bitStream, p9);
-		InvokeSignal(GetLocalSlotIndex(sharedIdentifier), &bitStream, true);
-		return SendCallOrSignal(sharedIdentifier, 9, &bitStream, false);
-	}
-	template <class P1, class P2, class P3, class P4, class P5, class P6, class P7, class P8, class P9, class P10>
-	bool Signal(const char *sharedIdentifier, P1 &p1, P2 &p2, P3 &p3, P4 &p4, P5 &p5, P6 &p6, P7 &p7, P8 &p8, P9 &p9, P10 &p10)	{
-		RakNet::BitStream bitStream;
-		_RPC3::SerializeCallParameterBranch<P1>::type::apply(bitStream, p1);
-		_RPC3::SerializeCallParameterBranch<P2>::type::apply(bitStream, p2);
-		_RPC3::SerializeCallParameterBranch<P3>::type::apply(bitStream, p3);
-		_RPC3::SerializeCallParameterBranch<P4>::type::apply(bitStream, p4);
-		_RPC3::SerializeCallParameterBranch<P5>::type::apply(bitStream, p5);
-		_RPC3::SerializeCallParameterBranch<P6>::type::apply(bitStream, p6);
-		_RPC3::SerializeCallParameterBranch<P7>::type::apply(bitStream, p7);
-		_RPC3::SerializeCallParameterBranch<P8>::type::apply(bitStream, p8);
-		_RPC3::SerializeCallParameterBranch<P9>::type::apply(bitStream, p9);
-		_RPC3::SerializeCallParameterBranch<P10>::type::apply(bitStream, p10);
-		InvokeSignal(GetLocalSlotIndex(sharedIdentifier), &bitStream, true);
-		return SendCallOrSignal(sharedIdentifier, 10, &bitStream, false);
-	}
+	
 
 	struct SignalExplicitParameters
 	{
@@ -439,104 +324,14 @@ public:
 	};
 
 	/// Same as Signal(), but you are forced to specify the remote system parameters
-	bool SignalExplicit(const char *sharedIdentifier, const SignalExplicitParameters * const signalExplicitParameters){
+	template<typename... Args>
+	bool SignalExplicit(const char *sharedIdentifier, const SignalExplicitParameters * const signalExplicitParameters, Args... args){
 		SetTimestamp(signalExplicitParameters->timeStamp);
 		SetSendParams(signalExplicitParameters->priority, signalExplicitParameters->reliability, signalExplicitParameters->orderingChannel);
 		SetRecipientAddress(signalExplicitParameters->systemAddress, signalExplicitParameters->broadcast);
-		return Signal(sharedIdentifier);
+		return Signal(sharedIdentifier, args...);
 	}
-	template <class P1 >
-	bool SignalExplicit(const char *sharedIdentifier, const SignalExplicitParameters * const signalExplicitParameters,
-		P1 &p1
-		)	{
-			SetTimestamp(signalExplicitParameters->timeStamp);
-			SetSendParams(signalExplicitParameters->priority, signalExplicitParameters->reliability, signalExplicitParameters->orderingChannel);
-			SetRecipientAddress(signalExplicitParameters->systemAddress, signalExplicitParameters->broadcast);
-			return Signal(sharedIdentifier, p1);
-	}
-	template <class P1, class P2 >
-	bool SignalExplicit(const char *sharedIdentifier, const SignalExplicitParameters * const signalExplicitParameters,
-		P1 &p1, P2 &p2
-		)	{
-			SetTimestamp(signalExplicitParameters->timeStamp);
-			SetSendParams(signalExplicitParameters->priority, signalExplicitParameters->reliability, signalExplicitParameters->orderingChannel);
-			SetRecipientAddress(signalExplicitParameters->systemAddress, signalExplicitParameters->broadcast);
-			return Signal(sharedIdentifier, p1, p2);
-	}
-	template <class P1, class P2, class P3 >
-	bool SignalExplicit(const char *sharedIdentifier, const SignalExplicitParameters * const signalExplicitParameters,
-		P1 &p1, P2 &p2, P3 &p3
-		)	{
-			SetTimestamp(signalExplicitParameters->timeStamp);
-			SetSendParams(signalExplicitParameters->priority, signalExplicitParameters->reliability, signalExplicitParameters->orderingChannel);
-			SetRecipientAddress(signalExplicitParameters->systemAddress, signalExplicitParameters->broadcast);
-			return Signal(sharedIdentifier, p1, p2, p3);
-	}
-	template <class P1, class P2, class P3, class P4 >
-	bool SignalExplicit(const char *sharedIdentifier, const SignalExplicitParameters * const signalExplicitParameters,
-		P1 &p1, P2 &p2, P3 &p3, P4 &p4
-		)	{
-			SetTimestamp(signalExplicitParameters->timeStamp);
-			SetSendParams(signalExplicitParameters->priority, signalExplicitParameters->reliability, signalExplicitParameters->orderingChannel);
-			SetRecipientAddress(signalExplicitParameters->systemAddress, signalExplicitParameters->broadcast);
-			return Signal(sharedIdentifier, p1, p2, p3, p4);
-	}
-	template <class P1, class P2, class P3, class P4, class P5 >
-	bool SignalExplicit(const char *sharedIdentifier, const SignalExplicitParameters * const signalExplicitParameters,
-		P1 &p1, P2 &p2, P3 &p3, P4 &p4, P5 &p5
-		)	{
-			SetTimestamp(signalExplicitParameters->timeStamp);
-			SetSendParams(signalExplicitParameters->priority, signalExplicitParameters->reliability, signalExplicitParameters->orderingChannel);
-			SetRecipientAddress(signalExplicitParameters->systemAddress, signalExplicitParameters->broadcast);
-			return Signal(sharedIdentifier, p1, p2, p3, p4, p5);
-	}
-	template <class P1, class P2, class P3, class P4, class P5, class P6 >
-	bool SignalExplicit(const char *sharedIdentifier, const SignalExplicitParameters * const signalExplicitParameters,
-		P1 &p1, P2 &p2, P3 &p3, P4 &p4, P5 &p5, P6 &p6
-		)	{
-			SetTimestamp(signalExplicitParameters->timeStamp);
-			SetSendParams(signalExplicitParameters->priority, signalExplicitParameters->reliability, signalExplicitParameters->orderingChannel);
-			SetRecipientAddress(signalExplicitParameters->systemAddress, signalExplicitParameters->broadcast);
-			return Signal(sharedIdentifier, p1, p2, p3, p4, p5, p6);
-	}
-	template <class P1, class P2, class P3, class P4, class P5, class P6, class P7 >
-	bool SignalExplicit(const char *sharedIdentifier, const SignalExplicitParameters * const signalExplicitParameters,
-		P1 &p1, P2 &p2, P3 &p3, P4 &p4, P5 &p5, P6 &p6, P7 &p7
-		)	{
-			SetTimestamp(signalExplicitParameters->timeStamp);
-			SetSendParams(signalExplicitParameters->priority, signalExplicitParameters->reliability, signalExplicitParameters->orderingChannel);
-			SetRecipientAddress(signalExplicitParameters->systemAddress, signalExplicitParameters->broadcast);
-			return Signal(sharedIdentifier, p1, p2, p3, p4, p5, p6, p7);
-	}
-	template <class P1, class P2, class P3, class P4, class P5, class P6, class P7, class P8 >
-	bool SignalExplicit(const char *sharedIdentifier, const SignalExplicitParameters * const signalExplicitParameters,
-		P1 &p1, P2 &p2, P3 &p3, P4 &p4, P5 &p5, P6 &p6, P7 &p7, P8 &p8
-		)	{
-			SetTimestamp(signalExplicitParameters->timeStamp);
-			SetSendParams(signalExplicitParameters->priority, signalExplicitParameters->reliability, signalExplicitParameters->orderingChannel);
-			SetRecipientAddress(signalExplicitParameters->systemAddress, signalExplicitParameters->broadcast);
-			return Signal(sharedIdentifier, p1, p2, p3, p4, p5, p6, p7, p8);
-	}
-	template <class P1, class P2, class P3, class P4, class P5, class P6, class P7, class P8, class P9 >
-	bool SignalExplicit(const char *sharedIdentifier, const SignalExplicitParameters * const signalExplicitParameters,
-		P1 &p1, P2 &p2, P3 &p3, P4 &p4, P5 &p5, P6 &p6, P7 &p7, P8 &p8, P9 &p9
-		)	{
-			SetTimestamp(signalExplicitParameters->timeStamp);
-			SetSendParams(signalExplicitParameters->priority, signalExplicitParameters->reliability, signalExplicitParameters->orderingChannel);
-			SetRecipientAddress(signalExplicitParameters->systemAddress, signalExplicitParameters->broadcast);
-			return Signal(sharedIdentifier, p1, p2, p3, p4, p5, p6, p7, p8, p9);
-	}
-	template <class P1, class P2, class P3, class P4, class P5, class P6, class P7, class P8, class P9, class P10 >
-	bool SignalExplicit(const char *sharedIdentifier, const SignalExplicitParameters * const signalExplicitParameters,
-		P1 &p1, P2 &p2, P3 &p3, P4 &p4, P5 &p5, P6 &p6, P7 &p7, P8 &p8, P9 &p9, P10 &p10
-		)	{
-			SetTimestamp(signalExplicitParameters->timeStamp);
-			SetSendParams(signalExplicitParameters->priority, signalExplicitParameters->reliability, signalExplicitParameters->orderingChannel);
-			SetRecipientAddress(signalExplicitParameters->systemAddress, signalExplicitParameters->broadcast);
-			return Signal(sharedIdentifier, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10);
-	}
-
-
+	
 	// ---------------------------- ALL INTERNAL AFTER HERE ----------------------------
 
 	/// \internal
@@ -615,7 +410,8 @@ public:
 	unsigned int nextSlotRegistrationCount;
 
 	bool interruptSignal;
-
+	
+	friend _RPC3::RpcCall;
 };
 
 } // End namespace
