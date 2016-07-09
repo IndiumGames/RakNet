@@ -20,10 +20,6 @@
 
 using namespace RakNet;
 
-// int RPC3::RemoteRPCFunctionComp( const RPC3::RPCIdentifier &key, const RemoteRPCFunction &data )
-// {
-// 	return strcmp(key.C_String(), data.identifier.C_String());
-// }
 int RakNet::RPC3::LocalSlotObjectComp( const LocalSlotObject &key, const LocalSlotObject &data )
 {
 	if (key.callPriority>data.callPriority)
@@ -39,6 +35,7 @@ int RakNet::RPC3::LocalSlotObjectComp( const LocalSlotObject &key, const LocalSl
 
 	return 1;
 }
+
 RPC3::RPC3()
 {
 	currentExecution[0]=0;
@@ -119,8 +116,6 @@ const char *RPC3::GetCurrentExecution(void) const
 bool RPC3::SendCallOrSignal(RakString uniqueIdentifier, char parameterCount, RakNet::BitStream *serializedParameters, bool isCall)
 {
 	SystemAddress systemAddr;
-//	unsigned int outerIndex;
-//	unsigned int innerIndex;
 
 	if (uniqueIdentifier.IsEmpty())
 		return false;
@@ -154,24 +149,9 @@ bool RPC3::SendCallOrSignal(RakString uniqueIdentifier, char parameterCount, Rak
 			systemAddr=rakPeerInterface->GetSystemAddressFromIndex(systemIndex);
 			if (systemAddr!=RakNet::UNASSIGNED_SYSTEM_ADDRESS && systemAddr!=outgoingSystemAddress)
 			{
-// 				if (GetRemoteFunctionIndex(systemAddr, uniqueIdentifier, &outerIndex, &innerIndex, isCall))
-// 				{
-// 					// Write a number to identify the function if possible, for faster lookup and less bandwidth
-// 					bs.Write(true);
-// 					if (isCall)
-// 						bs.WriteCompressed(remoteFunctions[outerIndex]->operator [](innerIndex).functionIndex);
-// 					else
-// 						bs.WriteCompressed(remoteSlots[outerIndex]->operator [](innerIndex).functionIndex);
-// 				}
-// 				else
-// 				{
-// 					bs.Write(false);
-					StringCompressor::Instance()->EncodeString(uniqueIdentifier, 512, &bs, 0);
-//				}
+				StringCompressor::Instance()->EncodeString(uniqueIdentifier, 512, &bs, 0);
 
 				bs.WriteCompressed(serializedParameters->GetNumberOfBitsUsed());
-
-				// serializedParameters->PrintBits();
 
 				bs.WriteAlignedBytes((const unsigned char*) serializedParameters->GetData(), serializedParameters->GetNumberOfBytesUsed());
 				SendUnified(&bs, outgoingPriority, outgoingReliability, outgoingOrderingChannel, systemAddr, false);
@@ -186,20 +166,7 @@ bool RPC3::SendCallOrSignal(RakString uniqueIdentifier, char parameterCount, Rak
 		systemAddr = outgoingSystemAddress;
 		if (systemAddr!=RakNet::UNASSIGNED_SYSTEM_ADDRESS)
 		{
-// 			if (GetRemoteFunctionIndex(systemAddr, uniqueIdentifier, &outerIndex, &innerIndex, isCall))
-// 			{
-// 				// Write a number to identify the function if possible, for faster lookup and less bandwidth
-// 				bs.Write(true);
-// 				if (isCall)
-// 					bs.WriteCompressed(remoteFunctions[outerIndex]->operator [](innerIndex).functionIndex);
-// 				else
-// 					bs.WriteCompressed(remoteSlots[outerIndex]->operator [](innerIndex).functionIndex);
-// 			}
-// 			else
-// 			{
-// 				bs.Write(false);
-				StringCompressor::Instance()->EncodeString(uniqueIdentifier, 512, &bs, 0);
-//			}
+			StringCompressor::Instance()->EncodeString(uniqueIdentifier, 512, &bs, 0);
 
 			bs.WriteCompressed(serializedParameters->GetNumberOfBitsUsed());
 			bs.WriteAlignedBytes((const unsigned char*) serializedParameters->GetData(), serializedParameters->GetNumberOfBytesUsed());
@@ -248,9 +215,6 @@ PluginReceiveResult RPC3::OnReceive(Packet *packet)
 		incomingSystemAddress=packet->systemAddress;
 		OnRPC3Call(packet->systemAddress, packet->data+packetDataOffset, packet->length-packetDataOffset);
 		return RR_STOP_PROCESSING_AND_DEALLOCATE;
-// 	case ID_AUTO_RPC_REMOTE_INDEX:
-// 		OnRPCRemoteIndex(packet->systemAddress, packet->data+packetDataOffset, packet->length-packetDataOffset);
-// 		return RR_STOP_PROCESSING_AND_DEALLOCATE;
 	}
 
 	return RR_CONTINUE_PROCESSING;
@@ -267,8 +231,6 @@ void RPC3::OnRPC3Call(const SystemAddress &systemAddress, unsigned char *data, u
 	NetworkIDObject *networkIdObject;
 	NetworkID networkId;
 	bool hasNetworkId=false;
-//	bool hasFunctionIndex=false;
-//	unsigned int functionIndex;
 	BitSize_t bitsOnStack;
 	char strIdentifier[512];
 	incomingExtraData.Reset();
@@ -300,90 +262,49 @@ void RPC3::OnRPC3Call(const SystemAddress &systemAddress, unsigned char *data, u
 	bool isCall;
 	bs.Read(isCall);
 	bs.AlignReadToByteBoundary();
-//	bs.Read(hasFunctionIndex);
-//	if (hasFunctionIndex)
-//		bs.ReadCompressed(functionIndex);
-//	else
 		StringCompressor::Instance()->DecodeString(strIdentifier,512,&bs,0);
 	bs.ReadCompressed(bitsOnStack);
 	RakNet::BitStream serializedParameters;
 	if (bitsOnStack>0)
 	{
 		serializedParameters.AddBitsAndReallocate(bitsOnStack);
-		// BITS_TO_BYTES is correct, why did I change this?
 		bs.ReadAlignedBytes(serializedParameters.GetData(), BITS_TO_BYTES(bitsOnStack));
 		serializedParameters.SetWriteOffset(bitsOnStack);
 	}
-// 	if (hasFunctionIndex)
-// 	{
-// 		if (
-// 			(isCall==true && functionIndex>localFunctions.Size()) ||
-// 			(isCall==false && functionIndex>localSlots.Size())
-// 			)
-// 		{
-// 			// Failed - other system specified a totally invalid index
-// 			// Possible causes: Bugs, attempts to crash the system, requested function not registered
-// 			SendError(systemAddress, RPC_ERROR_FUNCTION_INDEX_OUT_OF_RANGE, "");
-// 			return;
-// 		}
-// 	}
-// 	else
+	
+	// Find the registered function with this str
+	if (isCall)
 	{
-		// Find the registered function with this str
-		if (isCall)
+		functionIndex = localFunctions.GetIndexOf(strIdentifier);
+		if (functionIndex.IsInvalid())
 		{
-// 			for (functionIndex=0; functionIndex < localFunctions.Size(); functionIndex++)
-// 			{
-// 				bool isObjectMember = boost::fusion::get<0>(localFunctions[functionIndex].functionPointer);
-// 				//		boost::function<_RPC3::InvokeResultCodes (_RPC3::InvokeArgs)> functionPtr = boost::fusion::get<0>(localFunctions[functionIndex].functionPointer);
-//
-// 				if (isObjectMember == (networkIdObject!=0) &&
-// 					strcmp(localFunctions[functionIndex].identifier.C_String(), strIdentifier)==0)
-// 				{
-// 					// SEND RPC MAPPING
-// 					RakNet::BitStream outgoingBitstream;
-// 					outgoingBitstream.Write((MessageID)ID_AUTO_RPC_REMOTE_INDEX);
-// 					outgoingBitstream.Write(hasNetworkId);
-// 					outgoingBitstream.WriteCompressed(functionIndex);
-// 					StringCompressor::Instance()->EncodeString(strIdentifier,512,&outgoingBitstream,0);
-// 					outgoingBitstream.Write(isCall);
-// 					SendUnified(&outgoingBitstream, HIGH_PRIORITY, RELIABLE_ORDERED, 0, systemAddress, false);
-// 					break;
-// 				}
-// 			}
-
-
-			functionIndex = localFunctions.GetIndexOf(strIdentifier);
-			if (functionIndex.IsInvalid())
-			{
-				SendError(systemAddress, RPC_ERROR_FUNCTION_NOT_REGISTERED, strIdentifier);
-				return;
-			}
-			lrpcf = localFunctions.ItemAtIndex(functionIndex);
-
-			bool isObjectMember = std::get<0>(lrpcf->functionPointer);
-			if (isObjectMember==true && networkIdObject==0)
-			{
-				// Failed - Calling C++ function as C function
-				SendError(systemAddress, RPC_ERROR_CALLING_CPP_AS_C, strIdentifier);
-				return;
-			}
-
-			if (isObjectMember==false && networkIdObject!=0)
-			{
-				// Failed - Calling C function as C++ function
-				SendError(systemAddress, RPC_ERROR_CALLING_C_AS_CPP, strIdentifier);
-				return;
-			}
+			SendError(systemAddress, RPC_ERROR_FUNCTION_NOT_REGISTERED, strIdentifier);
+			return;
 		}
-		else
+		lrpcf = localFunctions.ItemAtIndex(functionIndex);
+
+		bool isObjectMember = std::get<0>(lrpcf->functionPointer);
+		if (isObjectMember==true && networkIdObject==0)
 		{
-			functionIndex = localSlots.GetIndexOf(strIdentifier);
-			if (functionIndex.IsInvalid())
-			{
-				SendError(systemAddress, RPC_ERROR_FUNCTION_NOT_REGISTERED, strIdentifier);
-				return;
-			}
+			// Failed - Calling C++ function as C function
+			SendError(systemAddress, RPC_ERROR_CALLING_CPP_AS_C, strIdentifier);
+			return;
+		}
+
+		if (isObjectMember==false && networkIdObject!=0)
+		{
+			// Failed - Calling C function as C++ function
+			SendError(systemAddress, RPC_ERROR_CALLING_C_AS_CPP, strIdentifier);
+			return;
+		}
+	}
+	else
+	{
+		functionIndex = localSlots.GetIndexOf(strIdentifier);
+		if (functionIndex.IsInvalid())
+		{
+			SendError(systemAddress, RPC_ERROR_FUNCTION_NOT_REGISTERED, strIdentifier);
+			return;
 		}
 	}
 
@@ -391,9 +312,9 @@ void RPC3::OnRPC3Call(const SystemAddress &systemAddress, unsigned char *data, u
 	{
 		bool isObjectMember = std::get<0>(lrpcf->functionPointer);
 		std::function<_RPC3::InvokeResultCodes (_RPC3::InvokeArgs)> functionPtr = std::get<1>(lrpcf->functionPointer);
-		//	int arity = boost::fusion::get<2>(localFunctions[functionIndex].functionPointer);
-		//	if (isObjectMember)
-		//		arity--; // this pointer
+		int arity = std::get<2>(lrpcf->functionPointer);
+		//if (isObjectMember)
+		//	arity--; // this pointer
 		if (functionPtr==0)
 		{
 			// Failed - Function was previously registered, but isn't registered any longer
@@ -402,12 +323,12 @@ void RPC3::OnRPC3Call(const SystemAddress &systemAddress, unsigned char *data, u
 		}
 
 		// Boost doesn't support this for class members
-		//	if (arity!=parameterCount)
-		//	{
-		//		// Failed - The number of parameters that this function has was explicitly specified, and does not match up.
-		//		SendError(systemAddress, RPC_ERROR_INCORRECT_NUMBER_OF_PARAMETERS, localFunctions[functionIndex].identifier);
-		//		return;
-		//	}
+		if (arity!=parameterCount)
+		{
+			// Failed - The number of parameters that this function has was explicitly specified, and does not match up.
+			SendError(systemAddress, RPC_ERROR_INCORRECT_NUMBER_OF_PARAMETERS, strIdentifier);
+			return;
+		}
 
 		_RPC3::InvokeArgs functionArgs;
 		functionArgs.bitStream=&serializedParameters;
@@ -483,75 +404,11 @@ void RPC3::InvokeSignal(DataStructures::HashIndex functionIndex, RakNet::BitStre
 	if (temporarilySetUSA)
 		incomingSystemAddress=lastIncomingAddress;
 }
-// void RPC3::OnRPCRemoteIndex(const SystemAddress &systemAddress, unsigned char *data, unsigned int lengthInBytes)
-// {
-// 	// A remote system has given us their internal index for a particular function.
-// 	// Store it and use it from now on, to save bandwidth and search time
-// 	bool objectExists;
-// 	RakString strIdentifier;
-// 	unsigned int insertionIndex;
-// 	unsigned int remoteIndex;
-// 	RemoteRPCFunction newRemoteFunction;
-// 	RakNet::BitStream bs(data,lengthInBytes,false);
-// 	RPCIdentifier identifier;
-// 	bool isObjectMember;
-// 	bool isCall;
-// 	bs.Read(isObjectMember);
-// 	bs.ReadCompressed(remoteIndex);
-// 	bs.Read(strIdentifier);
-// 	bs.Read(isCall);
-//
-// 	if (strIdentifier.IsEmpty())
-// 		return;
-//
-// 	DataStructures::OrderedList<RPCIdentifier, RemoteRPCFunction, RPC3::RemoteRPCFunctionComp> *theList;
-// 	if (
-// 		(isCall==true && remoteFunctions.Has(systemAddress)) ||
-// 		(isCall==false && remoteSlots.Has(systemAddress))
-// 		)
-// 	{
-// 		if (isCall==true)
-// 			theList = remoteFunctions.Get(systemAddress);
-// 		else
-// 			theList = remoteSlots.Get(systemAddress);
-// 		insertionIndex=theList->GetIndexFromKey(identifier, &objectExists);
-// 		if (objectExists==false)
-// 		{
-// 			newRemoteFunction.functionIndex=remoteIndex;
-// 			newRemoteFunction.identifier = strIdentifier;
-// 			theList->InsertAtIndex(newRemoteFunction, insertionIndex, _FILE_AND_LINE_ );
-// 		}
-// 	}
-// 	else
-// 	{
-// 		theList = RakNet::OP_NEW<DataStructures::OrderedList<RPCIdentifier, RemoteRPCFunction, RPC3::RemoteRPCFunctionComp> >(_FILE_AND_LINE_);
-//
-// 		newRemoteFunction.functionIndex=remoteIndex;
-// 		newRemoteFunction.identifier = strIdentifier;
-// 		theList->InsertAtEnd(newRemoteFunction, _FILE_AND_LINE_ );
-//
-// 		if (isCall==true)
-// 			remoteFunctions.SetNew(systemAddress,theList);
-// 		else
-// 			remoteSlots.SetNew(systemAddress,theList);
-// 	}
-// }
+
 
 void RPC3::OnClosedConnection(const SystemAddress &systemAddress, RakNetGUID rakNetGUID, PI2_LostConnectionReason lostConnectionReason )
 {
-// 	if (remoteFunctions.Has(systemAddress))
-// 	{
-// 		DataStructures::OrderedList<RPCIdentifier, RemoteRPCFunction, RPC3::RemoteRPCFunctionComp> *theList = remoteFunctions.Get(systemAddress);
-// 		delete theList;
-// 		remoteFunctions.Delete(systemAddress);
-// 	}
-//
-// 	if (remoteSlots.Has(systemAddress))
-// 	{
-// 		DataStructures::OrderedList<RPCIdentifier, RemoteRPCFunction, RPC3::RemoteRPCFunctionComp> *theList = remoteSlots.Get(systemAddress);
-// 		delete theList;
-// 		remoteSlots.Delete(systemAddress);
-// 	}
+
 }
 
 void RPC3::OnShutdown(void)
@@ -563,16 +420,6 @@ void RPC3::OnShutdown(void)
 void RPC3::Clear(void)
 {
 	unsigned j;
-// 	for (j=0; j < remoteFunctions.Size(); j++)
-// 	{
-// 		DataStructures::OrderedList<RPCIdentifier, RemoteRPCFunction, RPC3::RemoteRPCFunctionComp> *theList = remoteFunctions[j];
-// 		RakNet::OP_DELETE(theList,_FILE_AND_LINE_);
-// 	}
-// 	for (j=0; j < remoteSlots.Size(); j++)
-// 	{
-// 		DataStructures::OrderedList<RPCIdentifier, RemoteRPCFunction, RPC3::RemoteRPCFunctionComp> *theList = remoteSlots[j];
-// 		RakNet::OP_DELETE(theList,_FILE_AND_LINE_);
-// 	}
 
 	DataStructures::List<RakNet::RakString> keyList;
 	DataStructures::List<LocalSlot*> outputList;
@@ -590,8 +437,6 @@ void RPC3::Clear(void)
 		RakNet::OP_DELETE(outputList2[j],_FILE_AND_LINE_);
 	}
 	localFunctions.Clear(_FILE_AND_LINE_);
-//	remoteFunctions.Clear();
-//	remoteSlots.Clear();
 	outgoingExtraData.Reset();
 	incomingExtraData.Reset();
 }
@@ -605,29 +450,6 @@ void RPC3::SendError(SystemAddress target, unsigned char errorCode, const char *
 	SendUnified(&bs, HIGH_PRIORITY, RELIABLE_ORDERED, 0, target, false);
 }
 
-// bool RPC3::GetRemoteFunctionIndex(const SystemAddress &systemAddress, RPC3::RPCIdentifier identifier, unsigned int *outerIndex, unsigned int *innerIndex, bool isCall)
-// {
-// 	bool objectExists=false;
-// 	if (isCall)
-// 	{
-// 		if (remoteFunctions.Has(systemAddress))
-// 		{
-// 			*outerIndex = remoteFunctions.GetIndexAtKey(systemAddress);
-// 			DataStructures::OrderedList<RPCIdentifier, RemoteRPCFunction, RPC3::RemoteRPCFunctionComp> *theList = remoteFunctions[*outerIndex];
-// 			*innerIndex = theList->GetIndexFromKey(identifier, &objectExists);
-// 		}
-// 	}
-// 	else
-// 	{
-// 		if (remoteSlots.Has(systemAddress))
-// 		{
-// 			*outerIndex = remoteFunctions.GetIndexAtKey(systemAddress);
-// 			DataStructures::OrderedList<RPCIdentifier, RemoteRPCFunction, RPC3::RemoteRPCFunctionComp> *theList = remoteSlots[*outerIndex];
-// 			*innerIndex = theList->GetIndexFromKey(identifier, &objectExists);
-// 		}
-// 	}
-// 	return objectExists;
-// }
 DataStructures::HashIndex RPC3::GetLocalSlotIndex(const char *sharedIdentifier)
 {
 	return localSlots.GetIndexOf(sharedIdentifier);

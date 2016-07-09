@@ -15,7 +15,6 @@
 #ifndef __RPC_3_H
 #define __RPC_3_H
 
-// Most of the internals of the boost code to make this work
 #include "RPC3_STL.h"
 #include "PluginInterface2.h"
 #include "PacketPriority.h"
@@ -31,7 +30,7 @@
 #endif
 
 /// \defgroup RPC_3_GROUP RPC3
-/// \brief Remote procedure calls, powered by the 3rd party library Boost
+/// \brief Remote procedure calls, powered by the C++14
 /// \details
 /// \ingroup PLUGINS_GROUP
 
@@ -71,6 +70,8 @@ enum RPCErrorCodes
 	/// SetRecipientObject() was called before Call(), but RegisterFunction() was called with isObjectMember=false
 	/// If you intended to call a C function, call SetRecipientObject(UNASSIGNED_NETWORK_ID) first.
 	RPC_ERROR_CALLING_C_AS_CPP,
+	
+	RPC_ERROR_INCORRECT_NUMBER_OF_PARAMETERS,
 };
 
 /// \brief The RPC3 plugin allows you to call remote functions as if they were local functions, using the standard function call syntax
@@ -125,6 +126,7 @@ public:
 		int callPriority;
 		_RPC3::FunctionPointer functionPointer;
 	};
+	
 	/// \internal
 	/// Identifies an RPC function, by string identifier and if it is a C or C++ function
 	typedef RakString RPCIdentifier;
@@ -135,6 +137,7 @@ public:
 //		RPCIdentifier identifier;
 		DataStructures::OrderedList<LocalSlotObject,LocalSlotObject,LocalSlotObjectComp> slotObjects;
 	};
+	
 	/// Register a slot, which is a function pointer to one or more instances of a class that supports this function signature
 	/// When a signal occurs, all slots with the same identifier are called.
 	/// \param[in] sharedIdentifier A string to identify the slot. Recommended to be the same as the name of the function.
@@ -226,7 +229,7 @@ public:
 	/// 2. - And you overloaded RakNet::BitStream& operator<<(RakNet::BitStream& out, MyClass& in) then that will be used to do the serialization
 	/// 3. - Otherwise, it will use bitStream.Write(myClass); BitStream already defines specializations for NetworkIDObject, SystemAddress, other BitStreams
 	/// 4. If the parameter is a pointer
-	/// 5. - And the pointer can be converted to NetworkIDObject, then it will write bitStream.Write(myClass->GetNetworkID()); To make it also dereference the pointer, use RakNet::_RPC3::Deref(myClass)
+	/// 5. - And the pointer can be converted to NetworkIDObject, then it will write bitStream.Write(myClass->GetNetworkID()); To make it also dereference the pointer, use RakNet::_RPC3::Deref(myClass) 
 	/// 6. - And the pointer can not be converted to NetworkID, but it is a pointer to RakNet::RPC3, then it is skipped
 	/// 7. Otherwise, the pointer is dereferenced and written as in step 2 and 3.
 	///
@@ -340,21 +343,8 @@ public:
 	{
 		LocalRPCFunction() {}
 		LocalRPCFunction(_RPC3::FunctionPointer _functionPointer) {functionPointer=_functionPointer;};
-//		LocalRPCFunction(RPCIdentifier _identifier, _RPC3::FunctionPointer _functionPointer) {identifier=_identifier; functionPointer=_functionPointer;};
-//		RPCIdentifier identifier;
 		_RPC3::FunctionPointer functionPointer;
 	};
-
-	/// \internal
-	/// The RPC identifier, and the index of the function on a remote system
-// 	struct RemoteRPCFunction
-// 	{
-// 		RPCIdentifier identifier;
-// 		unsigned int functionIndex;
-// 	};
-//
-// 	/// \internal
-// 	static int RemoteRPCFunctionComp( const RPCIdentifier &key, const RemoteRPCFunction &data );
 
 	/// \internal
 	/// Sends the RPC call, with a given serialized function
@@ -372,7 +362,6 @@ public:
 	void OnAttach(void);
 	virtual PluginReceiveResult OnReceive(Packet *packet);
 	virtual void OnRPC3Call(const SystemAddress &systemAddress, unsigned char *data, unsigned int lengthInBytes);
-//	virtual void OnRPCRemoteIndex(const SystemAddress &systemAddress, unsigned char *data, unsigned int lengthInBytes);
 	virtual void OnClosedConnection(const SystemAddress &systemAddress, RakNetGUID rakNetGUID, PI2_LostConnectionReason lostConnectionReason );
 	virtual void OnShutdown(void);
 
@@ -381,15 +370,10 @@ public:
 	void SendError(SystemAddress target, unsigned char errorCode, const char *functionName);
 	DataStructures::HashIndex GetLocalFunctionIndex(RPCIdentifier identifier);
 	DataStructures::HashIndex GetLocalSlotIndex(const char *sharedIdentifier);
-//	bool GetRemoteFunctionIndex(const SystemAddress &systemAddress, RPCIdentifier identifier, unsigned int *outerIndex, unsigned int *innerIndex, bool isCall);
 
 	DataStructures::Hash<RakNet::RakString, LocalSlot*,256, RakNet::RakString::ToInteger> localSlots;
 	DataStructures::Hash<RakNet::RakString, LocalRPCFunction*,256, RakNet::RakString::ToInteger> localFunctions;
 
-// 	DataStructures::List<LocalSlot*> localSlots;
-// 	DataStructures::List<LocalRPCFunction> localFunctions;
-
-//	DataStructures::Map<SystemAddress, DataStructures::OrderedList<RPCIdentifier, RemoteRPCFunction, RPC3::RemoteRPCFunctionComp> *> remoteFunctions, remoteSlots;
 	RakNet::Time outgoingTimestamp;
 	PacketPriority outgoingPriority;
 	PacketReliability outgoingReliability;

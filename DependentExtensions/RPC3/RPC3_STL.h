@@ -8,8 +8,8 @@
  *
  */
 
-#ifndef __RPC3_BOOST_H
-#define __RPC3_BOOST_H
+#ifndef __RPC3_STL_H
+#define __RPC3_STL_H
 
 #include <type_traits>
 #include <functional>
@@ -20,22 +20,9 @@
 
 /*INVOKE FUNCTIONS START
 TODO: Put these in to own generic file.
-*/
-// To invoke C function with arguments.
-template <class F, class... Args>
-auto INVOKE(F&& f, Args&&... args) ->
-    decltype(std::forward<F>(f)(std::forward<Args>(args)...)) {
-        return std::forward<F>(f)(std::forward<Args>(args)...);
-}
-
-
-// To invoke C function without arguments.
-template <class F>
-auto INVOKE(F&& f) ->
-    decltype(std::forward<F>(f)()) {
-        return std::forward<F>(f)();
-}
-
+ * This file implements invoke functions which are similar to be implemented in
+ * C++17, but uses Tuple instead of variadic template.
+ */
 
 namespace detail {
     template <typename F, typename Tuple, bool Done, int Total, int... N>
@@ -103,37 +90,42 @@ auto INVOKE(Ret T::*pmf, Obj &&objectPtr, Tuple &&t) {
 }
 /*INVOKE FUNCTIONS END*/
 
+template<class F>
+struct function_traits;
+ 
+// function pointer
+template<class R, class... Args>
+struct function_traits<R(*)(Args...)> : public function_traits<R(Args...)>
+{};
+
+// A compile time helper for variadic templates.
+template<class R, class... Args>
+struct function_traits<R(Args...)>
+{
+    using return_type = R;
+ 
+    static constexpr std::size_t arity = sizeof...(Args);
+ 
+    template <std::size_t N>
+    struct argument
+    {
+        static_assert(N < arity, "error: invalid parameter index.");
+        using type = typename std::tuple_element<N,std::tuple<Args...>>::type;
+    };
+};
+
+
+
+
 // Fixes
 // error C2504: 'boost::fusion::detail::invoke_impl<Function,Sequence,N,CBI,RandomAccess>' : base class undefined
 // This defines the maximum number of parameters you can have
 //TODO: There should be no maximum anymore.
+// Test 15 derefered pointers with and without this:
 #ifndef BOOST_FUSION_INVOKE_MAX_ARITY
 #define BOOST_FUSION_INVOKE_MAX_ARITY 10
 #endif
 
-
-/*
-// Boost dependencies
-// Boost is assumed to be at C:\boost_1_43_0 based on the project settings
-// If this is not where you downloaded boost, change the project settings Configuration Properties / C/C++ / General / Additional Include Directories
-// If you don't have boost, get it from http://www.boost.org/users/download/
-// If you don't want to use boost, use RPC4 instead which relies on assembly but has fewer features
-#include "boost/type_traits.hpp"
-#include "boost/function.hpp"
-#include "boost/bind.hpp"
-#include "boost/mpl/if.hpp"
-#include "boost/mpl/apply.hpp"
-#include "boost/function_types/parameter_types.hpp"
-#include "boost/fusion/container/list/cons.hpp" // boost::fusion::nil
-#include "boost/fusion/include/push_back.hpp"
-#include "boost/fusion/include/invoke.hpp"
-#include "boost/fusion/tuple/tuple.hpp"
-#include "boost/fusion/tuple/make_tuple.hpp"
-#include "boost/fusion/functional/invocation/invoke.hpp"
-#include "boost/type_traits/is_array.hpp"
-*/
-// Not needed?
-//#include <boost/fusion/container/generation/make_vector.hpp>
 
 #include "NetworkIDManager.h"
 #include "NetworkIDObject.h"
@@ -175,7 +167,7 @@ struct InvokeArgs
 	NetworkIDObject *thisPtr;
 };
 
-typedef std::tuple<bool, std::function<InvokeResultCodes(InvokeArgs)> > FunctionPointer;
+typedef std::tuple<bool, std::function<InvokeResultCodes(InvokeArgs)>, int> FunctionPointer;
 
 struct StrWithDestructor
 {
@@ -327,7 +319,6 @@ struct ReadWithoutNetworkIDNoPtr
 		return IRC_SUCCESS;
 	}
 
-	// typedef boost::mpl::false_ Cleanup;
 	template< typename T2 >
 	static void Cleanup(T2 &t) {}
 };
@@ -444,22 +435,10 @@ struct SetRPC3Ptr
 		return IRC_SUCCESS;
 	}
 
-	//typedef boost::mpl::false_ Cleanup;
 	template< typename T2 >
 	static void Cleanup(T2 &t) {}
 };
 
-/*
-template< typename T >
-struct ReadWithNetworkID
-{
-	typedef typename boost::mpl::if_<
-		boost::is_pointer<T>
-		, typename ReadWithNetworkIDPtr<T> // true
-		, typename ReadWithNetworkIDNoPtr<T>
-	>::type type;
-};
-*/
 
 template< typename T >
 struct ReadWithoutNetworkID
@@ -477,47 +456,10 @@ struct identity
 	typedef T type;
 };
 
-/*template< typename T >
-struct IsRPC3Ptr
-{
-	typedef typename std::conditional<
-		std::is_convertible<T,RPC3*>::value,
-		std::true_type,
-		std::false_type>::type type;
-};*/
-/*
-template< typename T >
-struct ShouldReadNetworkID
-{
-	
-	typedef typename boost::mpl::if_<
-		boost::is_pointer<T>,
-		typename identity<T>::type,
-		boost::add_pointer<T>>::type typeWithPtr;
-
-	typedef typename boost::mpl::if_<
-		boost::is_convertible<typeWithPtr,NetworkIDObject*>,
-		boost::mpl::true_,
-		boost::mpl::false_>::type type;
-		
-
-	typedef typename std::conditional<
-		std::is_convertible<T,NetworkIDObject*>::value,
-		std::true_type::value_type,
-		std::false_type::value_type>::type type;
-};*/
 
 template< typename T >
 struct GetReadFunction
 {
-	/*
-	typedef typename boost::mpl::if_<
-		typename ShouldReadNetworkID<T>::type
-		, typename ReadWithNetworkID<T>::type
-		, typename ReadWithoutNetworkID<T>::type
-	>::type type;
-	*/
-    //const bool
 	typedef typename std::conditional<
 		std::is_convertible<T, NetworkIDObject*>::value
 		, ReadWithNetworkIDPtr<T>
@@ -556,6 +498,10 @@ struct RpcInvoker<R(Args...)> {
     	return irc;
     }
     
+    /*
+     * After all of the arguments are processed, invoke them with the function
+     * pointer.
+     */
 	template<std::size_t I = 0, typename Function>
 	static inline typename std::enable_if<I == sizeof...(Args), void>::type
 			apply(Function func, InvokeArgs &functionArgs,
@@ -564,11 +510,14 @@ struct RpcInvoker<R(Args...)> {
 		irc = IRC_SUCCESS;
 	}
 	
+    /*
+     * Iterate arguments in the args... tuple recursively and replace them with
+     * values from functionArgs.
+     */
 	template<std::size_t I = 0, typename Function>
 	static inline typename std::enable_if<I < sizeof...(Args), void>::type
 			apply(Function func, InvokeArgs &functionArgs,
-                                				std::tuple<Args...>& args,
-                                                InvokeResultCodes &irc) {
+            				std::tuple<Args...>& args, InvokeResultCodes &irc) {
         auto arg = std::get<I>(args);
         ProcessArgType<decltype(arg)>::type::apply(functionArgs, arg);
         std::get<I>(args) = arg;
@@ -640,20 +589,19 @@ struct WriteBitstream
 	}
 };
 
-//template <typename T>
 struct WritePtr
 {
 	template <typename T2>
 	static inline void applyArray(RakNet::BitStream &bitStream, T2 *t) {bitStream << (*t);}
 	template <typename T2>
 	static inline void apply(RakNet::BitStream &bitStream, T2 *t) {bitStream << (*t);}
-//	template <>
+
 	static inline void apply(RakNet::BitStream &bitStream, char *t) {bitStream << t;}
-//	template <>
+
 	static inline void apply(RakNet::BitStream &bitStream, unsigned char *t) {bitStream << t;}
-//	template <>
+
 	static inline void apply(RakNet::BitStream &bitStream, const char *t) {bitStream << t;}
-//	template <>
+
 	static inline void apply(RakNet::BitStream &bitStream, const unsigned char *t) {bitStream << t;}
 };
 
@@ -772,54 +720,17 @@ struct SerializeCallParameterBranch
 	>::type type;
 };
 
-/*
-void Func(ARG arg1, ARG2 arg2) {
-	...
-}
-
-REGISTER_FUNCTION(rpcManager, Func, ARG, ARG2)
-
-template<typename Function, typename... ArgTypes>
-void register_function(Function f, ArgTypes...) {
-	GetBoundPointer<ArgTypes...>(f);
-}
-
-template<typename Function>
-struct BoostRPCInvoker {
-	template<typename... ArgTypes>
-	void apply(Function func, InvokeArgs &functionArgs, ArgTypes...) {}
-}
-
-
-using placeholders_list = std::tuple<decltype(std::placeholders::_1)
-								   , decltype(std::placeholders::_2)
-                                   , decltype(std::placeholders::_3)
-                                   , decltype(std::placeholders::_4)
-                                   , decltype(std::placeholders::_5)
-                                   , decltype(std::placeholders::_6)
-                                   , decltype(std::placeholders::_7)
-                                   , decltype(std::placeholders::_8)
-                                   , decltype(std::placeholders::_9)
-                                   , decltype(std::placeholders::_10)
-                                   , decltype(std::placeholders::_11)
-                                   >;
-
-template<typename... ArgTypes>
-FunctionPointer func(bool isCppPointer, ArgTypes... args) {
-	return std::make_tuple(isCppPointer, std::bind( & BoostRPCInvoker<Function, ArgTypes...>::apply, f, std::placeholders::_1));
-}
-
-template <std::size_t... Ints>
-FunctionPointer prefunc(bool isCppPointer, std::index_sequence<Ints...>) {
-    return func(isCppPointer, typename std::tuple_element<Ints, placeholders_list>::type{}...);
-}*/
 							   
 template<typename Function>
 struct GetBoundPointer_C {
 	static FunctionPointer GetBoundPointer(Function f) {
+        using Traits = function_traits<decltype(f)>;
+        int arity = Traits::arity;
     	return std::make_tuple(false,
             std::bind(static_cast<InvokeResultCodes(*)(Function, InvokeArgs)>
-                (&RpcInvoker<decltype(f)>::applyer), f, std::placeholders::_1));
+                (&RpcInvoker<decltype(f)>::applyer), f, std::placeholders::_1),
+            arity
+        );
 	}
 };
 
@@ -831,7 +742,8 @@ struct GetBoundPointer_CPP {
             std::bind(
                 static_cast<InvokeResultCodes(*)(Ret(C::*)(Args...), InvokeArgs)>
                     (&RpcInvokerCpp::applyer), f, std::placeholders::_1
-            )
+            ),
+            sizeof...(Args)
         );
 	}
 };
