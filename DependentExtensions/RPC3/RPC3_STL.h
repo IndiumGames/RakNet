@@ -15,6 +15,7 @@
 #include <functional>
 #include <tuple>
 #include <iterator>
+#include <vector>
 
 
 
@@ -115,18 +116,6 @@ struct function_traits<R(Args...)>
 };
 
 
-
-
-// Fixes
-// error C2504: 'boost::fusion::detail::invoke_impl<Function,Sequence,N,CBI,RandomAccess>' : base class undefined
-// This defines the maximum number of parameters you can have
-//TODO: There should be no maximum anymore.
-// Test 15 derefered pointers with and without this:
-#ifndef BOOST_FUSION_INVOKE_MAX_ARITY
-#define BOOST_FUSION_INVOKE_MAX_ARITY 10
-#endif
-
-
 #include "NetworkIDManager.h"
 #include "NetworkIDObject.h"
 #include "BitStream.h"
@@ -191,7 +180,7 @@ struct RPC3Tag
 };
 
 // Track the pointers tagged with RakNet::_RPC3::Deref
-static RPC3Tag __RPC3TagPtrs[BOOST_FUSION_INVOKE_MAX_ARITY+1];
+static std::vector<RPC3Tag> __RPC3TagPtrs;
 static int __RPC3TagHead=0;
 static int __RPC3TagTail=0;
 
@@ -200,7 +189,7 @@ static void __RPC3_Tag_AddHead(const RPC3Tag &p)
 {
 	// Update tag if already in array
 	int i;
-	for (i=__RPC3TagTail; i!=__RPC3TagHead; i=(i+1)%BOOST_FUSION_INVOKE_MAX_ARITY)
+	for (i=__RPC3TagTail; i!=__RPC3TagPtrs.size(); i++)
 	{
 		if (__RPC3TagPtrs[i].v==p.v)
 		{
@@ -214,22 +203,21 @@ static void __RPC3_Tag_AddHead(const RPC3Tag &p)
 		}
 	}
 
-	__RPC3TagPtrs[__RPC3TagHead]=p;
-	__RPC3TagHead = (__RPC3TagHead + 1) % BOOST_FUSION_INVOKE_MAX_ARITY;
-	assert(__RPC3TagHead!=__RPC3TagTail);
+    __RPC3TagPtrs.push_back(p);
+	assert(__RPC3TagPtrs.size()!=__RPC3TagTail);
 }
 static void __RPC3ClearTail(void) {
-	while (__RPC3TagTail!=__RPC3TagHead)
+	while (__RPC3TagTail!=__RPC3TagPtrs.size())
 	{
 		if (__RPC3TagPtrs[__RPC3TagTail].v==0)
-			__RPC3TagTail = (__RPC3TagTail+1) % BOOST_FUSION_INVOKE_MAX_ARITY;
+			__RPC3TagTail++;
 		else
 			return;
 	}
 }
 static bool __RPC3ClearPtr(void* p, RPC3Tag *tag) {
 	int i;
-	for (i=__RPC3TagTail; i!=__RPC3TagHead; i=(i+1)%BOOST_FUSION_INVOKE_MAX_ARITY)
+	for (i=__RPC3TagTail; i!=__RPC3TagPtrs.size(); i++)
 	{
 		if (__RPC3TagPtrs[i].v==p)
 		{
@@ -758,16 +746,16 @@ FunctionPointer GetBoundPointer(Function f) {
 	>::type::GetBoundPointer(f);
 }
 
-
+// Recursive loop to serialize all arguments into a BitStream.
+// Finally, send the call or signal with BitStream.
 struct RpcCall {
     template<typename Rpc, typename... Args>
     static inline bool Call(Rpc *rpc, const char *identifier, int argCount,
-                                                    bool isCall, Args... args) {
+                                                bool isCall, Args... args) {
         RakNet::BitStream bitStream;
         bool result = false;
         
-        RpcCall::Call(
-            rpc, identifier, bitStream, result, argCount, isCall, args...);
+        RpcCall::Call(rpc, identifier, bitStream, result, argCount, isCall, args...);
         
         return result;
     }
@@ -781,13 +769,13 @@ struct RpcCall {
         }
         
 		result = rpc->SendCallOrSignal(
-                        identifier, argCount, &bitStream, isCall);
+                                identifier, argCount, &bitStream, isCall);
 	}
 	
 	template<typename Rpc, typename Arg>
 	static inline void Call(Rpc *rpc, const char *identifier,
-        RakNet::BitStream &bitStream, bool &result, int argCount, bool isCall,
-                                                                    Arg &arg) {
+                    RakNet::BitStream &bitStream, bool &result, int argCount,
+                    bool isCall, Arg &arg) {
 		_RPC3::SerializeCallParameterBranch<Arg>::type::apply(bitStream, arg);
         
         RpcCall::Call(rpc, identifier, bitStream, result, argCount, isCall);
@@ -799,8 +787,7 @@ struct RpcCall {
                 bool &result, int argCount, bool isCall, Arg &arg, Args... args) {
 		_RPC3::SerializeCallParameterBranch<Arg>::type::apply(bitStream, arg);
         
-        RpcCall::Call(
-                rpc, identifier, bitStream, result, argCount, isCall, args...);
+        RpcCall::Call(rpc, identifier, bitStream, result, argCount, isCall, args...);
 	}
 };
 
